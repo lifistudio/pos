@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX "roles_name_lower_uq" ON "roles" USING btree (lower("name"));--> statement-breakpoint
+CREATE UNIQUE INDEX "membership_tiers_name_lower_uq" ON "membership_tiers" USING btree (lower("name"));

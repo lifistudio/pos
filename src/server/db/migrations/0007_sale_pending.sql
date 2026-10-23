@@ -1,0 +1,1 @@
+ALTER TYPE "public"."sale_status" ADD VALUE 'PENDING' BEFORE 'PAID';

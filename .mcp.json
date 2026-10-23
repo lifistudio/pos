@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "boardui": {
+      "command": "npx",
+      "args": ["-y", "boardui@0.5.8", "mcp"],
+      "env": { "BOARDUI_TELEMETRY_DISABLED": "1" }
+    }
+  }
+}

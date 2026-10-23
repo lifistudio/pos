@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      # Nilai dummy hanya untuk build & pemeriksaan (tidak ada koneksi DB pada langkah ini).
+      DATABASE_URL: postgres://ci:ci@127.0.0.1:5432/ci
+      BETTER_AUTH_SECRET: ci-only-secret-value-not-used-anywhere-000000
+      BETTER_AUTH_URL: http://localhost:3000
+      PAYMENT_PROVIDER: none
+      BOARDUI_TELEMETRY_DISABLED: "1"
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm check:pricing
+      - run: pnpm check:marketplace
+      - run: pnpm check:media
+      - run: pnpm check:barcode
+      - run: pnpm check:receipt
+      - run: pnpm check:ecr
+      - run: pnpm check:oauth
+      - run: pnpm build
+      - run: pnpm audit --prod

@@ -1,0 +1,1 @@
+ALTER TABLE "sale_payments" ADD COLUMN "terminal" jsonb;

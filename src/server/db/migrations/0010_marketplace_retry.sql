@@ -1,0 +1,1 @@
+ALTER TABLE "marketplace_connections" ADD COLUMN "retry_order_nos" jsonb DEFAULT '[]'::jsonb NOT NULL;

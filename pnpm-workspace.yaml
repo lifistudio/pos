@@ -1,0 +1,9 @@
+allowBuilds:
+  '@embedded-postgres/windows-x64': true
+  esbuild: true
+  sharp: false
+  unrs-resolver: false
+
+# Perbaikan keamanan dependensi transitif (lihat docs/SECURITY_LOG.md).
+overrides:
+  '@esbuild-kit/core-utils>esbuild': ^0.25.12
