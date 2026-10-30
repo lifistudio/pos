@@ -38,6 +38,8 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Image Docker ringan: next build menyiapkan server mandiri berisi file yang benar-benar dipakai.
+  output: "standalone",
   // Panduan di aplikasi dibaca dari docs/*.md (satu sumber dengan repo).
   outputFileTracingIncludes: { "/panduan/*": ["./docs/PANDUAN-*.md"] },
   cacheComponents: true,
