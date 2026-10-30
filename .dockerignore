@@ -1,7 +1,11 @@
 node_modules
 .next
 .git
-.env*
+# .env yang dibuat Dokploy saat build harus ikut terbaca (next build memvalidasi env);
+# file env lokal tidak pernah ikut.
+.env.local
+.env.*.local
+.env.development*
 .data
 coverage
 *.tsbuildinfo
