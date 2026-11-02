@@ -8,6 +8,7 @@ import { verifyApiKey } from "@/server/services/api-key.service";
 import { ACCESS_PREFIX, verifyAccessToken } from "@/server/services/oauth.service";
 import type { AppEnv } from "./context";
 import { ApiError, forbidden, unauthorized } from "./errors";
+import { clientIp } from "./rate-limit";
 
 const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const allowedOrigin = new URL(env.BETTER_AUTH_URL).origin;
@@ -25,7 +26,7 @@ function readApiKey(headers: Headers) {
  */
 export const authenticate = createMiddleware<AppEnv>(async (c, next) => {
   const headers = c.req.raw.headers;
-  const ip = headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? headers.get("x-real-ip");
+  const ip = clientIp(headers);
   const userAgent = headers.get("user-agent");
 
   const apiKey = readApiKey(headers);

@@ -238,6 +238,12 @@ export async function postOpname(actor: Actor, id: string) {
       `);
     }
     // Kunci baris stok cabang yang terlibat agar penjualan bersamaan tidak membuat selisih salah hitung.
+    await tx.execute(sql`
+      select 1 from inventory_levels il
+      where il.branch_id = ${o.branchId} and il.variant_id in (select variant_id from stock_opname_items where opname_id = ${id})
+      order by il.variant_id
+      for update
+    `);
     const rows = await tx.execute<{ variant_id: string; counted_qty: number; on_hand: number }>(sql`
       select i.variant_id, i.counted_qty, coalesce(il.on_hand, 0) as on_hand
       from stock_opname_items i

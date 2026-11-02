@@ -77,10 +77,12 @@ export function OrderForm() {
   const itemsTotal = lines.reduce((s, l) => s + (l.price ?? 0) * l.qty, 0);
   const units = lines.reduce((s, l) => s + l.qty, 0);
 
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
   const save = useMutation({
     mutationFn: () =>
       api<{ data: { id: string; number: string } }>("/online-orders", {
         method: "POST",
+        headers: { "idempotency-key": idempotencyKey },
         body: {
           branchId,
           channel,

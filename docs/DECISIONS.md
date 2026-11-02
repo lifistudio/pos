@@ -183,3 +183,38 @@ Tabel `api_keys` (hash SHA-256, prefix, kedaluwarsa, cabut, last-used). Alasan: 
 - Claude web/Desktop Connectors dan ChatGPT memakai login OAuth (spesifikasi otorisasi MCP). Dibangun sendiri (±400 baris) alih-alih menambah dependensi: Better Auth 1.7 yang terpasang tidak menyertakan OAuth provider, dan paket baru wajib dipindai.
 - PKCE S256 wajib, DCR terbuka dengan validasi `redirect_uri` ketat, refresh token dirotasi + deteksi pemakaian ulang, token di-hash, access 1 jam / refresh 30 hari.
 - Token OAuth **hanya-baca** di middleware (GET + MCP), terlepas dari role pemilik — AI agent tidak bisa mengubah data. API key tetap tersedia untuk klien berbasis header.
+
+## ADR-033 — Nama merek diganti, identitas teknis tetap — Diterima — 2026-11-02
+- Semua teks yang terlihat pengguna, dokumen, nama server MCP, dan folder Cloudinary bawaan menjadi POS by lifistudio.
+- **Sengaja tidak diganti:** nama IndexedDB, kunci localStorage, cache service worker, BroadcastChannel, salt HKDF, id protokol `konten-ecr-v1`, advisory lock. Mengubahnya menghapus antrean transaksi offline di perangkat, merusak token marketplace terenkripsi, dan membatalkan paket harga offline. Nilainya tidak terlihat pengguna.
+- Logo digambar dari geometri tanpa font atau ikon pihak ketiga. Ikon Remix tidak boleh dipakai sebagai logo.
+
+## ADR-034 — Batas pengelolaan pengguna — Diterima — 2026-11-02
+- Akun pemegang role sistem (Owner) hanya bisa diubah Owner.
+- Pemberi role wajib memiliki permission **pengelolaan** (role, user, api_key, setting, branch, marketplace) yang terkandung di role itu, pada cakupan yang sama. Permission operasional sengaja tidak diwajibkan: Admin bawaan tidak punya `pos:*` tetapi harus bisa menugaskan Kasir. Aturan penuh "hanya yang dimiliki" akan mematikan alur itu.
+- Role akun sendiri tidak bisa diubah sendiri, juga oleh Owner (mencegah terkunci dari sistem).
+- Penguncian login per akun bisa dipakai orang lain untuk mengunci akun selama 15 menit. Risiko ini diterima: lebih ringan daripada tebakan password tanpa batas, dan terbuka sendiri.
+
+## ADR-035 — Stok dikirim saat berubah, cron sebagai cadangan — Diterima — 2026-11-02
+- Menunggu cron 5 menit membuka jendela oversell. `applyStockChanges`/`reserveStock`/`releaseStock` menjadwalkan push per cabang dengan debounce 10 detik di proses yang sama.
+- Upaya terbaik: di serverless atau saat proses mati, timer bisa hilang dan cron yang menutupnya. Tanpa antrean/worker agar deploy tetap sederhana.
+- Push tanpa perubahan angka tidak menulis log sinkron, agar log tidak penuh oleh setiap penjualan.
+
+## ADR-036 — Gateway QRIS: Xendit v3 dan DOKU SNAP — Diterima — 2026-11-02
+- Xendit memakai Payments API v3 (`/v3/payment_requests`), bukan `/qr_codes` lama. Webhook diverifikasi `x-callback-token`. Hanya `payment.capture` yang melunasi; `payment.failure` bukan akhir karena QR masih bisa dibayar.
+- Xendit tidak mendokumentasikan pembatalan QR. Pembayaran setelah batal masuk audit untuk refund manual.
+- DOKU memakai SNAP agar QR tampil di layar kasir. DOKU Checkout ditolak karena mengarahkan pelanggan ke halaman lain.
+- Notifikasi DOKU tidak dipercaya: skema tanda tangannya tidak konsisten di dokumentasi publik, jadi webhook hanya memicu `qr-mpm-query`. Webhook palsu tidak bisa melunasi apa pun.
+
+## ADR-037 — Idempotensi umum — Diterima — 2026-11-02
+- Kunci alami tetap dipakai bila ada. Sisanya memakai middleware dengan tabel sendiri.
+- Hanya respons sukses disimpan agar permintaan gagal bisa diulang. Ini berarti penyimpanan respons tidak satu transaksi dengan aksinya: proses yang mati di antara keduanya bisa diulang setelah 60 detik. Risiko diterima karena jendelanya sangat sempit.
+- Kunci shift memakai FOR SHARE/FOR UPDATE pada baris shift, bukan advisory lock, agar transaksi kasir yang bersamaan tidak saling menunggu.
+
+## ADR-038 — Rahasia tidak masuk image Docker — Diterima — 2026-11-02
+- `.dockerignore` mengecualikan `.env`. `next build` memakai nilai sementara karena build tidak membuka database (terbukti dengan build terhadap database yang tidak terjangkau).
+- Menggantikan commit f8a81b7. Konsekuensi: env wajib tersedia saat container berjalan.
+
+## ADR-039 — Logo tidak bisa diganti lewat aplikasi — Diterima — 2026-11-02
+- Permintaan owner: logo tidak bisa diganti saat dipasang. Di bawah MIT, siapa pun boleh mengubah kode, jadi pencegahan teknis mudah dilepas dan tidak dipakai.
+- Yang dilakukan: tidak ada env maupun menu untuk mengganti logo, dan TRADEMARK.md mengecualikan nama & logo dari lisensi kode.

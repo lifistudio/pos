@@ -59,12 +59,14 @@ class ShopeeAdapter implements MarketplaceAdapter {
       body: opts.body ? JSON.stringify(opts.body) : undefined,
       signal: AbortSignal.timeout(20_000),
     });
-    const data = (await res.json().catch(() => ({}))) as ShopeeResponse<T>;
-    if (res.status === 429 || data.error === "error_rate_limit") throw new MarketplaceError("Batas permintaan Shopee tercapai. Coba lagi sebentar.", "RATE_LIMIT");
-    if (data.error) {
+    const data = (await res.json().catch(() => null)) as ShopeeResponse<T> | null;
+    if (res.status === 429 || data?.error === "error_rate_limit") throw new MarketplaceError("Batas permintaan Shopee tercapai. Coba lagi sebentar.", "RATE_LIMIT");
+    if (data?.error) {
       const auth = /auth|token|sign|permission/i.test(data.error);
       throw new MarketplaceError(`Shopee: ${data.message || data.error}`, auth ? "AUTH" : "REMOTE");
     }
+    // Gangguan server jangan terbaca "tidak ada order": sinkron harus gagal agar jendela waktunya diulang.
+    if (!res.ok || !data) throw new MarketplaceError(`Shopee: server merespons ${res.status}.`, res.status === 401 || res.status === 403 ? "AUTH" : "REMOTE");
     return data;
   }
 
@@ -150,7 +152,20 @@ class ShopeeAdapter implements MarketplaceAdapter {
         });
       }
     }
+    // Nomor resi tidak ada di detail order; diambil terpisah hanya untuk order yang sudah dikirim.
+    for (const order of out) {
+      if (order.status !== "SHIPPED" || order.trackingNo) continue;
+      order.trackingNo = await this.trackingNumber(ctx, order.externalOrderNo).catch((error) => {
+        if (error instanceof MarketplaceError && error.kind !== "REMOTE") throw error;
+        return null;
+      });
+    }
     return out;
+  }
+
+  private async trackingNumber(ctx: AdapterContext, orderSn: string) {
+    const { response } = await this.call<{ tracking_number?: string }>("/api/v2/logistics/get_tracking_number", { ctx, query: { order_sn: orderSn } });
+    return response?.tracking_number || null;
   }
 
   async listListings(ctx: AdapterContext): Promise<MpListing[]> {
@@ -221,7 +236,12 @@ class ShopeeAdapter implements MarketplaceAdapter {
     const expected = this.sign(`${url}|${rawBody}`);
     const got = headers.get("authorization") ?? "";
     if (!safeEqualHex(expected, got)) throw new MarketplaceError("Signature push Shopee tidak valid.", "AUTH");
-    const body = JSON.parse(rawBody) as { code?: number; shop_id?: number; data?: { ordersn?: string; order_sn?: string } };
+    let body: { code?: number; shop_id?: number; data?: { ordersn?: string; order_sn?: string } };
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      return null;
+    }
     // code 3 = perubahan status order; event lain diabaikan.
     if (body.code !== 3 || !body.shop_id) return null;
     const sn = body.data?.ordersn ?? body.data?.order_sn;

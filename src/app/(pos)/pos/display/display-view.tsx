@@ -46,7 +46,7 @@ export function DisplayView() {
       <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-separator-border px-6">
         <div className="flex items-center gap-3">
           <BrandMark showName={false} />
-          <span className="text-title-3-semibold text-text-primary">{state?.storeName ?? "Konten POS"}</span>
+          <span className="text-title-3-semibold text-text-primary">{state?.storeName ?? "POS by lifistudio"}</span>
         </div>
         {!fullscreen && (
           <Button size="small" variant="secondary" leadingIcon={RiFullscreenLine} onClick={() => document.documentElement.requestFullscreen().catch(() => {})}>

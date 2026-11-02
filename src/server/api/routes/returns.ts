@@ -3,6 +3,7 @@ import { createReturn, getReturn, listReturns } from "@/server/services/return.s
 import { getStorePolicy, storePolicySchema, updateStorePolicy } from "@/server/services/settings.service";
 import { requirePermission } from "../middleware";
 import { pageMeta, pageQuery } from "../pagination";
+import { idempotent } from "../idempotency";
 import { createRouter } from "../router";
 import { body, dataOf, errorResponses, idParam, json, serialize } from "../schemas";
 
@@ -51,6 +52,7 @@ export const returnRoutes = createRouter()
       path: "/sales/{id}/returns",
       tags: ["Transaksi"],
       summary: "Retur barang dari struk: refund, stok kembali (bila layak jual), poin disesuaikan",
+      middleware: [idempotent] as const,
       description:
         "Nilai refund dihitung server secara proporsional terhadap total yang dibayar (setelah diskon, termasuk PPN). Refund tunai wajib shift terbuka dan mengurangi kas seharusnya shift itu. Retur penuh mengembalikan kuota voucher.",
       request: {

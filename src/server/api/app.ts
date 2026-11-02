@@ -9,7 +9,9 @@ import { auth } from "@/server/auth/auth";
 import { MarketplaceError } from "@/server/marketplace/types";
 import { createMcpServer, type CallApi } from "@/server/mcp/server";
 import { handleMarketplaceWebhook } from "@/server/services/marketplace.service";
+import { mailEnabled } from "@/server/email/mailer";
 import { handleGatewayNotification } from "@/server/services/payment.service";
+import { providerByName } from "@/server/payments/provider";
 import {
   authorizationServerMetadata,
   exchangeToken,
@@ -164,8 +166,14 @@ v1.route("/", meRoutes)
 export const app = createRouter().basePath("/api");
 
 app.use("*", secureHeaders({ crossOriginResourcePolicy: "same-origin" }));
+// Limit Better Auth memakai entri kiri X-Forwarded-For yang bisa dipalsukan; ini memakai IP dari proxy tepercaya.
+app.use("/auth/sign-in/*", rateLimit("sign-in", 20, 60_000, "ip"));
+app.use("/auth/request-password-reset", rateLimit("password-reset", 10, 3_600_000, "ip"));
+app.use("/auth/reset-password", rateLimit("password-reset", 10, 3_600_000, "ip"));
 app.on(["GET", "POST"], "/auth/*", (c) => auth.handler(c.req.raw));
 app.route("/v1", v1);
+/** Opsi publik untuk halaman login (tanpa sesi). Tidak boleh berisi data rahasia. */
+app.get("/public/config", (c) => c.json({ passwordReset: mailEnabled() }));
 
 /**
  * Webhook payment gateway (publik, tanpa sesi): keaslian dijamin signature, idempotensi oleh
@@ -174,15 +182,17 @@ app.route("/v1", v1);
 /** Push marketplace (publik, tanpa sesi): signature diverifikasi adapter; body mentah dipakai untuk HMAC. */
 app.post("/marketplace/webhook/:provider", rateLimit("webhook", 300, 60_000, "ip"), async (c) => {
   const raw = await c.req.text();
-  const result = await handleMarketplaceWebhook(c.req.param("provider"), raw, c.req.raw.headers, c.req.url);
+  // Shopee menandatangani URL yang didaftarkan; di balik reverse proxy c.req.url bisa berupa alamat internal.
+  const result = await handleMarketplaceWebhook(c.req.param("provider"), raw, c.req.raw.headers, `${issuer()}${c.req.path}`);
   return c.json({ ok: true, ...result }, 200);
 });
 
 app.post("/payments/webhook/:provider", rateLimit("webhook", 300, 60_000, "ip"), async (c) => {
   const body = await c.req.json().catch(() => null);
   if (!body) throw new ApiError(400, "INVALID_JSON", "Body harus JSON.");
-  const result = await handleGatewayNotification(c.req.param("provider"), body);
-  return c.json({ ok: true, outcome: result.outcome }, 200);
+  const name = c.req.param("provider");
+  const result = await handleGatewayNotification(name, body, { headers: c.req.raw.headers, path: c.req.path });
+  return c.json({ ok: true, outcome: result.outcome, ...providerByName(name)?.webhookAck }, 200);
 });
 
 /**
@@ -215,8 +225,13 @@ async function oauthForm(req: Request) {
   const authz = req.headers.get("authorization");
   let basic: { id: string; secret: string } | null = null;
   if (authz?.startsWith("Basic ")) {
-    const [id, secret] = Buffer.from(authz.slice(6), "base64").toString("utf8").split(":");
-    if (id && secret) basic = { id: decodeURIComponent(id), secret: decodeURIComponent(secret) };
+    const decoded = Buffer.from(authz.slice(6), "base64").toString("utf8");
+    const colon = decoded.indexOf(":");
+    try {
+      if (colon > 0) basic = { id: decodeURIComponent(decoded.slice(0, colon)), secret: decodeURIComponent(decoded.slice(colon + 1)) };
+    } catch {
+      throw new OAuthError("invalid_client", "Header Basic tidak valid.", 401);
+    }
   }
   return { form, basic };
 }
@@ -237,7 +252,7 @@ app.post("/oauth/register", rateLimit("oauth-register", 30, 3_600_000, "ip"), as
 app.post("/oauth/token", rateLimit("oauth-token", 120, 60_000, "ip"), async (c) => {
   try {
     const { form, basic } = await oauthForm(c.req.raw);
-    return c.json(await exchangeToken(form, basic), 200, { "cache-control": "no-store", pragma: "no-cache" });
+    return c.json(await exchangeToken(form, basic), 200, { "cache-control": "no-store", pragma: "no-cache" }); // token tidak boleh di-cache
   } catch (e) {
     return oauthFail(e);
   }

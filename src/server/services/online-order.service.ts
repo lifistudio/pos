@@ -5,6 +5,7 @@ import { db, type Tx } from "@/server/db";
 import {
   branches,
   customers,
+  marketplaceConnections,
   onlineOrderItems,
   onlineOrders,
   paymentIntents,
@@ -355,11 +356,22 @@ async function markOrderPaid(
   return "PAID";
 }
 
+/**
+ * Selama tokonya terhubung, pembayaran & pembatalan order marketplace mengikuti marketplace: mengubahnya di sini
+ * membuat stok dan status berbeda dari yang dilihat pembeli. Toko yang sudah diputus boleh diselesaikan manual.
+ */
+async function assertNotMarketplaceManaged(connectionId: string | null) {
+  if (!connectionId) return;
+  const [conn] = await db.select({ status: marketplaceConnections.status }).from(marketplaceConnections).where(eq(marketplaceConnections.id, connectionId));
+  if (conn && conn.status !== "DISCONNECTED") throw conflict("ORDER_FROM_MARKETPLACE", "Order ini mengikuti status di marketplace. Proses dari aplikasi penjual marketplace.");
+}
+
 /** Pembayaran manual: transfer bank, COD, atau marketplace yang sudah menagih pembeli. */
 export async function markPaidManual(actor: Actor, orderId: string, input: { method: PaymentMethod; reference?: string | null }) {
   const order = await loadOrder(orderId);
   if (!order) throw notFound("Order");
   assertBranch(actor, "online_order:update", order.branchId);
+  await assertNotMarketplaceManaged(order.connectionId);
   const result = await db.transaction(async (tx) => {
     const r = await markOrderPaid(tx, actor, orderId, { method: input.method, reference: input.reference ?? null, amount: order.total });
     if (r === "PAID") {
@@ -455,6 +467,7 @@ export async function cancelOrder(actor: Actor, orderId: string, reason: string)
   const order = await loadOrder(orderId);
   if (!order) throw notFound("Order");
   assertBranch(actor, "online_order:update", order.branchId);
+  await assertNotMarketplaceManaged(order.connectionId);
   const wasPaid = await db.transaction((tx) => cancelOrderTx(tx, actor, orderId, reason));
   return { ...(await getOrder(actor, orderId)), refundRequired: wasPaid };
 }

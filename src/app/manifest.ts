@@ -1,10 +1,11 @@
 import type { MetadataRoute } from "next";
+import { BRAND_INK } from "@/lib/brand";
 
 /** Manifest PWA: dipasang sebagai aplikasi kasir (layar penuh, langsung ke /pos). */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Konten POS",
-    short_name: "Konten",
+    name: "POS by lifistudio",
+    short_name: "POS",
     description: "Kasir & back-office multi-cabang. Kasir tetap bisa berjualan saat internet putus.",
     id: "/pos",
     start_url: "/pos",
@@ -12,7 +13,7 @@ export default function manifest(): MetadataRoute.Manifest {
     display: "standalone",
     orientation: "any",
     background_color: "#ffffff",
-    theme_color: "#2563eb",
+    theme_color: BRAND_INK,
     lang: "id",
     icons: [
       { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },

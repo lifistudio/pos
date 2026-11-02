@@ -7,7 +7,7 @@ import { env } from "@/server/env";
 import { MarketplaceError, safeEqualHex, type AdapterContext, type MarketplaceAdapter, type MpListing, type MpOrder } from "./types";
 
 /**
- * Toko simulasi untuk development & demo (tidak aktif di production). Katalognya = varian aktif Konten
+ * Toko simulasi untuk development & demo (tidak aktif di production). Katalognya = varian aktif POS
  * (SKU sama → terpetakan otomatis); order disimpan di `mock_marketplace_orders` dan perubahan status
  * dikirim sebagai webhook bertanda tangan HMAC ke jalur yang sama dengan marketplace sungguhan.
  */

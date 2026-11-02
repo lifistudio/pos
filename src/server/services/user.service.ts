@@ -1,11 +1,13 @@
 import "server-only";
 import { and, asc, count, eq, ilike, inArray, or, type SQL } from "drizzle-orm";
 import { db } from "@/server/db";
-import { account, branches, roles, session, user, userRoleAssignments } from "@/server/db/schema";
+import { account, branches, rolePermissions, roles, session, user, userRoleAssignments } from "@/server/db/schema";
 import { auth } from "@/server/auth/auth";
 import type { Actor } from "@/server/api/context";
 import { ApiError, conflict, notFound } from "@/server/api/errors";
 import { toPageMeta } from "@/server/api/pagination";
+import { can } from "@/server/rbac/access";
+import type { Permission } from "@/server/rbac/permissions";
 import { writeAudit } from "./audit.service";
 
 export type AssignmentInput = { roleId: string; branchId: string | null };
@@ -48,28 +50,74 @@ export async function listUsers(params: { q?: string; page: number; pageSize: nu
   return {
     data: rows.map((r) => ({
       ...r,
-      assignments: (byUser.get(r.id) ?? []).map(({ userId: _userId, ...a }) => a),
+      assignments: (byUser.get(r.id) ?? []).map(({ roleId, roleName, branchId, branchName }) => ({ roleId, roleName, branchId, branchName })),
     })),
     meta: toPageMeta(params.page, params.pageSize, total),
   };
 }
 
-async function assertAssignable(actor: Actor, assignments: AssignmentInput[]) {
+const escalation = (message: string) => new ApiError(403, "PERMISSION_ESCALATION", message);
+
+/**
+ * Permission yang memberi kendali atas sistem itu sendiri. Hanya ini yang wajib dimiliki pemberi role; permission
+ * operasional sengaja tidak, karena Admin memang menugaskan Kasir/Kepala Toko walau tidak punya hak `pos:*` sendiri.
+ */
+const CONTROL_RESOURCES = ["role", "user", "api_key", "setting", "branch", "marketplace"];
+const isControlPermission = (p: string) => CONTROL_RESOURCES.includes(p.split(":")[0]);
+
+async function holdsSystemRole(userId: string) {
+  const [row] = await db
+    .select({ userId: userRoleAssignments.userId })
+    .from(userRoleAssignments)
+    .innerJoin(roles, eq(roles.id, userRoleAssignments.roleId))
+    .where(and(eq(userRoleAssignments.userId, userId), eq(roles.isSystem, true)))
+    .limit(1);
+  return !!row;
+}
+
+/** Akun Owner hanya bisa diubah oleh Owner: tanpa ini Admin bisa mereset password Owner lalu mengambil alih. */
+async function assertManageable(actor: Actor, targetId: string) {
+  if ((await holdsSystemRole(targetId)) && !(await holdsSystemRole(actor.userId))) throw escalation("Akun Owner hanya bisa diubah oleh Owner.");
+}
+
+function hasScope(actor: Actor, permission: Permission, branchId: string | null) {
+  return branchId ? can(actor.access, permission, branchId) : actor.access.global.has(permission);
+}
+
+async function assertAssignable(actor: Actor, assignments: AssignmentInput[], manage: "user:create" | "user:update") {
   const roleIds = [...new Set(assignments.map((a) => a.roleId))];
   if (!roleIds.length) return;
   const found = await db.select({ id: roles.id, isSystem: roles.isSystem }).from(roles).where(inArray(roles.id, roleIds));
   if (found.length !== roleIds.length) throw notFound("Role");
   // Hanya Owner yang boleh menjadikan orang lain Owner.
-  if (found.some((r) => r.isSystem) && !actor.access.roleNames.includes("Owner")) {
-    throw new ApiError(403, "PERMISSION_ESCALATION", "Hanya Owner yang bisa memberikan role Owner.");
+  if (found.some((r) => r.isSystem) && !(await holdsSystemRole(actor.userId))) throw escalation("Hanya Owner yang bisa memberikan role Owner.");
+  if (assignments.some((a) => !hasScope(actor, manage, a.branchId))) throw escalation("Anda hanya bisa memberi akses di cabang yang Anda kelola.");
+
+  const perms = await db.select({ roleId: rolePermissions.roleId, permission: rolePermissions.permission }).from(rolePermissions).where(inArray(rolePermissions.roleId, roleIds));
+  for (const a of assignments) {
+    const missing = perms.filter((p) => p.roleId === a.roleId && isControlPermission(p.permission) && !hasScope(actor, p.permission as Permission, a.branchId));
+    if (missing.length) throw escalation("Role ini memberi hak pengelolaan yang tidak Anda miliki.");
   }
+}
+
+/** Penggantian role bersifat menyeluruh, jadi penugasan lama yang akan dihapus juga harus berada dalam wewenang pelaku. */
+async function assertAssignmentsChange(actor: Actor, id: string, next: AssignmentInput[]) {
+  const current = await db.select({ roleId: userRoleAssignments.roleId, branchId: userRoleAssignments.branchId }).from(userRoleAssignments).where(eq(userRoleAssignments.userId, id));
+  const keyOf = (a: AssignmentInput) => `${a.roleId}:${a.branchId ?? ""}`;
+  const before = new Set(current.map(keyOf));
+  const after = new Set(next.map(keyOf));
+  const changed = before.size !== after.size || [...after].some((k) => !before.has(k));
+  if (!changed) return;
+  if (id === actor.userId) throw conflict("CANNOT_EDIT_OWN_ROLES", "Role akun sendiri harus diubah oleh pengguna lain.");
+  if (current.some((a) => !hasScope(actor, "user:update", a.branchId))) throw escalation("Pengguna ini punya akses di luar cabang yang Anda kelola.");
+  await assertAssignable(actor, next, "user:update");
 }
 
 export async function createUser(
   actor: Actor,
   input: { name: string; email: string; phone?: string | null; password: string; assignments: AssignmentInput[] },
 ) {
-  await assertAssignable(actor, input.assignments);
+  await assertAssignable(actor, input.assignments, "user:create");
   const email = input.email.toLowerCase();
   const [exists] = await db.select({ id: user.id }).from(user).where(eq(user.email, email));
   if (exists) throw conflict("EMAIL_TAKEN", "Email sudah dipakai pengguna lain.");
@@ -106,10 +154,11 @@ export async function updateUser(
 ) {
   const [existing] = await db.select().from(user).where(eq(user.id, id));
   if (!existing) throw notFound("Pengguna");
+  await assertManageable(actor, id);
   if (id === actor.userId && input.isActive === false) {
     throw conflict("CANNOT_DISABLE_SELF", "Anda tidak bisa menonaktifkan akun sendiri.");
   }
-  if (input.assignments) await assertAssignable(actor, input.assignments);
+  if (input.assignments) await assertAssignmentsChange(actor, id, input.assignments);
 
   await db.transaction(async (tx) => {
     await tx
@@ -131,13 +180,18 @@ export async function updateUser(
 }
 
 export async function resetUserPassword(actor: Actor, id: string, password: string) {
+  await assertManageable(actor, id);
   const ctx = await auth.$context;
   const hash = await ctx.password.hash(password);
-  const [row] = await db
-    .update(account)
-    .set({ password: hash, updatedAt: new Date() })
-    .where(and(eq(account.userId, id), eq(account.providerId, "credential")))
-    .returning({ id: account.id });
-  if (!row) throw notFound("Pengguna");
-  await writeAudit(actor, { action: "reset_password", entity: "user", entityId: id });
+  await db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(account)
+      .set({ password: hash, updatedAt: new Date() })
+      .where(and(eq(account.userId, id), eq(account.providerId, "credential")))
+      .returning({ id: account.id });
+    if (!row) throw notFound("Pengguna");
+    // Password diganti karena bisa jadi bocor: sesi yang sudah terbuka ikut diputus.
+    await tx.delete(session).where(eq(session.userId, id));
+    await writeAudit(actor, { action: "reset_password", entity: "user", entityId: id }, tx);
+  });
 }

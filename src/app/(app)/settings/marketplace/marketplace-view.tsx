@@ -130,7 +130,7 @@ export function MarketplaceView() {
             <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border-button-default px-6 py-12 text-center">
               <RiStore3Line className="size-6 text-foreground-icon-tertiary" aria-hidden />
               <p className="text-body-medium text-text-primary">Belum ada toko marketplace yang terhubung.</p>
-              <p className="max-w-[48ch] text-body-regular text-text-tertiary">Hubungkan toko agar order masuk otomatis ke Order online dan stok di marketplace mengikuti stok Konten.</p>
+              <p className="max-w-[48ch] text-body-regular text-text-tertiary">Hubungkan toko agar order masuk otomatis ke Order online dan stok di marketplace mengikuti stok POS.</p>
             </div>
           ) : (
             connections.data.map((c) => (
@@ -160,7 +160,7 @@ export function MarketplaceView() {
           <ul className="flex flex-col gap-2 text-body-2-regular text-text-secondary">
             <li>Produk marketplace dipetakan ke varian lewat SKU yang sama; sisanya dipetakan manual.</li>
             <li>Order baru masuk sebagai Order online dan langsung me-reserve stok cabang sumber; dikirim → stok dipotong; dibatalkan → reservasi dilepas.</li>
-            <li>Stok tersedia (dikurangi buffer) dikirim ke marketplace setiap ada perubahan saat sinkron.</li>
+            <li>Stok tersedia (dikurangi buffer) dikirim ke marketplace beberapa detik setelah berubah; cron menjadi cadangan.</li>
             <li>Sinkron berjalan lewat webhook marketplace dan cron <span className="font-mono">POST /api/v1/marketplace/sync</span> tiap 5 menit.</li>
           </ul>
         </Panel>

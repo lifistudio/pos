@@ -3,7 +3,7 @@ import { randomBytes, scrypt as scryptCb, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import { and, count, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 import { db, type Tx } from "@/server/db";
-import { approvalGrants, approvalPins, auditLogs, rolePermissions, user, userRoleAssignments } from "@/server/db/schema";
+import { approvalGrants, approvalPins, auditLogs, rolePermissions, roles, user, userRoleAssignments } from "@/server/db/schema";
 import type { Actor } from "@/server/api/context";
 import { ApiError, badRequest, conflict, forbidden, notFound } from "@/server/api/errors";
 import { can } from "@/server/rbac/access";
@@ -24,6 +24,15 @@ async function hashPin(pin: string, salt: string) {
   return (await scrypt(pin, salt, 32)).toString("hex");
 }
 
+/** PIN hanya 6 angka: semua percobaan (persetujuan maupun ganti PIN) dihitung agar tidak bisa ditebak beruntun. */
+async function assertNotLocked(userId: string) {
+  const [{ failed }] = await db
+    .select({ failed: count() })
+    .from(auditLogs)
+    .where(and(eq(auditLogs.actorId, userId), eq(auditLogs.action, "approval_failed"), gt(auditLogs.createdAt, sql`now() - ${LOCK_WINDOW}::interval`)));
+  if (failed >= MAX_FAILED) throw new ApiError(429, "APPROVAL_LOCKED", "Terlalu banyak PIN salah. Coba lagi dalam 10 menit.");
+}
+
 // ── PIN milik sendiri ───────────────────────────────────────────────────
 
 export async function hasApprovalPin(userId: string) {
@@ -40,8 +49,12 @@ export async function setOwnPin(actor: Actor, input: { pin: string; currentPin?:
   const [existing] = await db.select().from(approvalPins).where(eq(approvalPins.userId, actor.userId));
   if (existing) {
     if (!input.currentPin) throw badRequest("CURRENT_PIN_REQUIRED", "Masukkan PIN lama untuk mengganti PIN.");
+    await assertNotLocked(actor.userId);
     const ok = await verifyHash(input.currentPin, existing.salt, existing.pinHash);
-    if (!ok) throw new ApiError(403, "PIN_INVALID", "PIN lama salah.");
+    if (!ok) {
+      await writeAudit(actor, { action: "approval_failed", entity: "approval", after: { reason: "change_pin" } });
+      throw new ApiError(403, "PIN_INVALID", "PIN lama salah.");
+    }
   }
   const salt = randomBytes(16).toString("hex");
   const pinHash = await hashPin(input.pin, salt);
@@ -54,6 +67,13 @@ export async function setOwnPin(actor: Actor, input: { pin: string; currentPin?:
 
 /** Admin menghapus PIN pengguna (lupa PIN / karyawan keluar). */
 export async function resetUserPin(actor: Actor, userId: string) {
+  const [owner] = await db
+    .select({ userId: userRoleAssignments.userId })
+    .from(userRoleAssignments)
+    .innerJoin(roles, eq(roles.id, userRoleAssignments.roleId))
+    .where(and(eq(userRoleAssignments.userId, userId), eq(roles.isSystem, true)))
+    .limit(1);
+  if (owner && !actor.access.global.has("role:delete")) throw new ApiError(403, "PERMISSION_ESCALATION", "PIN Owner hanya bisa dihapus oleh Owner.");
   const deleted = await db.delete(approvalPins).where(eq(approvalPins.userId, userId)).returning({ userId: approvalPins.userId });
   if (!deleted.length) throw notFound("PIN");
   await writeAudit(actor, { action: "reset_pin", entity: "user", entityId: userId });
@@ -74,11 +94,7 @@ async function verifyHash(pin: string, salt: string, expected: string) {
  */
 export async function requestApproval(actor: Actor, input: { permission: ApprovablePermission; branchId: string; pin: string }) {
   if (!can(actor.access, "pos:access", input.branchId) && !can(actor.access, "sale:read", input.branchId)) throw forbidden("pos:access");
-  const [{ failed }] = await db
-    .select({ failed: count() })
-    .from(auditLogs)
-    .where(and(eq(auditLogs.actorId, actor.userId), eq(auditLogs.action, "approval_failed"), gt(auditLogs.createdAt, sql`now() - ${LOCK_WINDOW}::interval`)));
-  if (failed >= MAX_FAILED) throw new ApiError(429, "APPROVAL_LOCKED", "Terlalu banyak PIN salah. Coba lagi dalam 10 menit.");
+  await assertNotLocked(actor.userId);
 
   // Calon penyetuju: penugasan global (branch null) atau di cabang ini, role memuat permission, punya PIN, akun aktif.
   const candidates = await db

@@ -1,5 +1,5 @@
 /*
- * Service worker Konten POS — agar halaman kasir (/pos) bisa dibuka ulang saat internet putus.
+ * Service worker POS by lifistudio — agar halaman kasir (/pos) bisa dibuka ulang saat internet putus.
  * Strategi:
  *  - Navigasi /pos   : network-first, cadangan = shell kasir terakhir yang tersimpan.
  *  - Navigasi lain   : network-only, cadangan = /offline.html (back-office butuh koneksi).

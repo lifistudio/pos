@@ -59,3 +59,8 @@
     from { transform: translateY(40px); opacity: 0; }
   }
 }
+
+/* Mode gelap: permukaan utama (dialog, kartu login) sama warnanya dengan kolom input, jadi kolom diangkat satu tingkat. */
+.dark .bg-background-primary-default {
+  --color-background-tertiary-default: var(--color-neutral-700);
+}

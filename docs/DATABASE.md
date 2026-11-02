@@ -98,3 +98,7 @@ Konvensi: PK `uuid` (v7, urut waktu), kolom `snake_case`, `created_at`/`updated_
 - Foreign key yang dipakai join/filter/hapus ber-index (0017). FK audit ke `user` (created_by, approved_by, …) sengaja tanpa index.
 - `oauth_tokens(access_hash)` & `(refresh_hash)` unik, `(user_id, client_id)`, `(family_id)`, `(client_id)`; `oauth_codes(client_id)`, `(user_id)` (0019).
 - Nama unik tanpa beda huruf besar/kecil: `upper(product_variants.sku)`, `lower(roles.name)`, `lower(membership_tiers.name)`, `brands.name_key` (0012/0016).
+
+## Idempotensi (0020)
+- `idempotency_keys`: PK (user_id, key), menyimpan hash permintaan dan respons sukses. Dibersihkan setelah 24 jam.
+- `payment_intents_one_pending_uq`: indeks unik parsial, satu QR aktif per dokumen.

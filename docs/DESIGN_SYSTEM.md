@@ -128,7 +128,7 @@ Semua dibangun dari primitive BoardUI + token yang sama.
 | `ScanInput` | Scan barcode (scanner USB & kamera) untuk kasir/stok/audit | `InputBase`, `Button`, BarcodeDetector API |
 | `ToastProvider` | Umpan balik setelah aksi | `Notification`, `NotificationViewport` |
 | `PageHeader`, `Panel`, `Skeleton` | Konsistensi judul halaman & permukaan kartu | Token & tipografi BoardUI |
-| `BrandMark` | Logo sementara "Konten" | Gradien accent + `RiStore2Fill` |
+| `BrandMark` | Logo sementara "POS" | Gradien accent + `RiStore2Fill` |
 | `MultiPicker` | Pilih banyak target (kategori/produk/varian/customer/tier/cabang) dengan pencarian API | `InputBase`, `Checkbox`, chip token sekunder |
 | `VariantChoices` + `lookupVariant()` | Hasil scan: langsung cocok (barcode/SKU persis), daftar pilihan bila kode cocok ke banyak varian, atau "tidak ditemukan"; dipakai transfer & opname | `Button`, `/variants/search` |
 | `ReturnForm` (`return-form.tsx`) | Retur atas satu struk: qty per baris, kondisi rusak, metode refund, pratinjau uang & poin (rumus `lib/returns`) | `Button`, `Checkbox`, `Select`, `Input` |
@@ -160,6 +160,12 @@ Semua dibangun dari primitive BoardUI + token yang sama.
 Kontainer `overflow-y-auto` wajib `relative`: input tersembunyi react-aria (`position:absolute`) di dalamnya bila tidak, memanjangkan dokumen (scroll ganda).
 
 Catatan: komponen BoardUI `stat-cards` & pola kartu chart dipakai langsung di dashboard. Chart memakai `recharts` (dependensi BoardUI).
+
+### Merek & akun
+- `BrandMark`: tanda gulungan struk (`MARK_PATH`, `src/lib/brand.ts`) memakai warna teks, ditambah "POS / by lifistudio". Jangan beri latar kotak gradien dan jangan ganti dengan ikon: Remix Icon License melarang ikon sebagai logo. Aset di `public/brand`, dibuat ulang dengan `node scripts/brand/build-logo.mjs`: `logo-lockup` (logo lengkap, minimal lebar 120 px agar "by lifistudio" terbaca), `logo-mark` (tanda saja), `logo-tile` (ikon berkotak). Akhiran `-light` untuk latar gelap. Jangan edit SVG manual; skrip menolak hasil yang masih berisi stroke.
+- `ChangePasswordSheet`: ganti password sendiri dari menu akun. Halaman `/forgot-password` & `/reset-password` hanya berguna bila SMTP aktif; `LoginHelp` menampilkan tautannya sesuai `/api/public/config`.
+- Logo tidak punya pengaturan: tidak ada env maupun menu untuk menggantinya (TRADEMARK.md).
+- Di mode gelap, `bg-background-primary-default` menaikkan `--color-background-tertiary-default` (`app.css`), karena permukaannya sama dengan warna kolom input.
 
 ## 10. Perubahan pada komponen vendor BoardUI
 Catat setiap perubahan pada `src/components/base|application|foundations` agar bisa diterapkan ulang saat memperbarui BoardUI.

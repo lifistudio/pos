@@ -29,13 +29,13 @@ const dec = new TextDecoder();
 const str = (v: unknown, max: number) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
 
 /**
- * Konten ECR v1 — protokol terbuka berbasis JSON (ASCII) di atas framing STX/ETX/LRC. Untuk jembatan/aplikasi EDC
+ * POS ECR v1 — protokol terbuka berbasis JSON (ASCII) di atas framing STX/ETX/LRC. Untuk jembatan/aplikasi EDC
  * yang dibuat vendor atau komunitas (mis. aplikasi di EDC Android, atau perantara ke protokol bank). Spesifikasi: docs/ECR.md.
  */
 export const kontenEcr: EcrProtocol = {
   id: "konten-ecr-v1",
-  name: "Konten ECR v1 (terbuka)",
-  description: "Untuk EDC atau aplikasi perantara yang mendukung protokol terbuka Konten ECR.",
+  name: "POS ECR v1 (terbuka)",
+  description: "Untuk EDC atau aplikasi perantara yang mendukung protokol terbuka POS ECR.",
   frame: { lrcInit: 0, lrcIncludesEtx: true },
   sale: (amount, ref) => enc.encode(JSON.stringify({ v: 1, cmd: "SALE", amount, currency: "IDR", ref })),
   cancel: (ref) => enc.encode(JSON.stringify({ v: 1, cmd: "CANCEL", ref })),

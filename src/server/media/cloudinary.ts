@@ -81,5 +81,5 @@ export function cloudinaryUrl(publicId: string, version: number, transformation:
   return `https://res.cloudinary.com/${env.CLOUDINARY_CLOUD_NAME}/${resourceType}/upload/${transformation}/v${version}/${publicId}`;
 }
 
-/** public_id untuk sebuah kelompok aset, misal mediaPublicId("products", id) → "konten-pos/products/<id>". */
+/** public_id untuk sebuah kelompok aset, misal mediaPublicId("products", id) → "pos-lifistudio/products/<id>". */
 export const mediaPublicId = (group: string, id: string) => `${env.CLOUDINARY_FOLDER}/${group}/${id}`;

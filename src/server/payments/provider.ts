@@ -1,41 +1,11 @@
 import "server-only";
-import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import { env } from "@/server/env";
-import { ApiError } from "@/server/api/errors";
+import { createDokuProvider } from "./doku";
+import { gatewayError, invalidSignature, safeEqual, type GatewayNotification, type GatewayStatus, type PaymentProvider } from "./types";
+import { createXenditProvider } from "./xendit";
 
-export type GatewayStatus = "PENDING" | "PAID" | "EXPIRED" | "FAILED" | "CANCELLED";
-
-export type GatewayNotification = {
-  gatewayOrderId: string;
-  status: GatewayStatus;
-  amount: number;
-  providerRef: string | null;
-  /** Kunci idempotensi: notifikasi dengan kunci sama diproses sekali. */
-  eventKey: string;
-};
-
-/**
- * Abstraksi gateway (PRD §3.7): logika order/transaksi tidak tahu gateway mana yang dipakai.
- * Menambah gateway = menambah implementasi interface ini + pilihan di `getPaymentProvider`.
- */
-export interface PaymentProvider {
-  readonly name: string;
-  createQris(input: { gatewayOrderId: string; amount: number; expiryMinutes: number }): Promise<{ providerRef: string | null; qrString: string; expiresAt: Date }>;
-  /** Cek status langsung ke gateway (dipakai saat webhook belum datang). null = tidak didukung. */
-  getStatus(gatewayOrderId: string): Promise<{ status: GatewayStatus; providerRef: string | null; amount: number } | null>;
-  /** Validasi signature & ubah payload notifikasi ke bentuk standar. Signature salah → throw. */
-  parseNotification(body: unknown): GatewayNotification;
-  /** Batalkan transaksi yang belum dibayar di sisi gateway (agar QR tidak bisa dibayar lagi). */
-  cancel?(gatewayOrderId: string): Promise<void>;
-}
-
-const invalidSignature = () => new ApiError(401, "INVALID_SIGNATURE", "Signature notifikasi tidak valid.");
-
-function safeEqual(a: string, b: string) {
-  const x = Buffer.from(a);
-  const y = Buffer.from(b);
-  return x.length === y.length && timingSafeEqual(x, y);
-}
+export type { GatewayNotification, GatewayStatus, NotificationContext, PaymentProvider } from "./types";
 
 // ── Midtrans (Core API, QRIS) ───────────────────────────────────────────
 
@@ -98,7 +68,7 @@ class MidtransProvider implements PaymentProvider {
     });
     const data = (await res.json().catch(() => ({}))) as MidtransPayload;
     if (!res.ok || !data.qr_string || !["200", "201"].includes(data.status_code ?? "")) {
-      throw new ApiError(502, "GATEWAY_ERROR", `Gateway menolak permintaan QRIS${data.status_message ? `: ${data.status_message}` : "."}`);
+      throw gatewayError(data.status_message);
     }
     return { providerRef: data.transaction_id ?? null, qrString: data.qr_string, expiresAt: new Date(Date.now() + expiryMinutes * 60_000) };
   }
@@ -147,7 +117,7 @@ class MockProvider implements PaymentProvider {
   }
 
   async createQris({ gatewayOrderId, amount, expiryMinutes }: { gatewayOrderId: string; amount: number; expiryMinutes: number }) {
-    return { providerRef: `mock-${gatewayOrderId}`, qrString: `KONTEN-MOCK-QRIS|${gatewayOrderId}|${amount}`, expiresAt: new Date(Date.now() + expiryMinutes * 60_000) };
+    return { providerRef: `mock-${gatewayOrderId}`, qrString: `POS-MOCK-QRIS|${gatewayOrderId}|${amount}`, expiresAt: new Date(Date.now() + expiryMinutes * 60_000) };
   }
 
   async getStatus() {
@@ -176,22 +146,27 @@ class MockProvider implements PaymentProvider {
   }
 }
 
-let cached: PaymentProvider | null | undefined;
+const cache = new Map<string, PaymentProvider | null>();
 
-/** Provider aktif sesuai env; null = QRIS dinamis tidak tersedia (pembayaran manual tetap bisa). */
-export function getPaymentProvider(): PaymentProvider | null {
-  if (cached !== undefined) return cached;
-  if (env.PAYMENT_PROVIDER === "midtrans" && env.MIDTRANS_SERVER_KEY) cached = new MidtransProvider(env.MIDTRANS_SERVER_KEY, env.MIDTRANS_IS_PRODUCTION === "true");
-  else if (env.PAYMENT_PROVIDER === "mock" && env.NODE_ENV !== "production") cached = new MockProvider();
-  else cached = null;
-  return cached;
+function buildProvider(name: string): PaymentProvider | null {
+  if (name === "midtrans") return env.MIDTRANS_SERVER_KEY ? new MidtransProvider(env.MIDTRANS_SERVER_KEY, env.MIDTRANS_IS_PRODUCTION === "true") : null;
+  if (name === "xendit") return createXenditProvider();
+  if (name === "doku") return createDokuProvider();
+  if (name === "mock") return env.PAYMENT_PROVIDER === "mock" && env.NODE_ENV !== "production" ? new MockProvider() : null;
+  return null;
 }
 
-/** Provider berdasarkan nama di URL webhook — hanya yang sedang aktif yang diterima. */
+/**
+ * Gateway berdasarkan nama, selama kredensialnya ada. Tidak harus yang aktif: setelah pindah gateway, QR lama
+ * masih bisa dibayar, jadi webhook & cek statusnya tetap harus jalan.
+ */
 export function providerByName(name: string): PaymentProvider | null {
-  const p = getPaymentProvider();
-  return p && p.name === name ? p : null;
+  if (!cache.has(name)) cache.set(name, buildProvider(name));
+  return cache.get(name) ?? null;
 }
+
+/** Gateway untuk QR baru sesuai env; null = QRIS dinamis tidak tersedia (pembayaran manual tetap bisa). */
+export const getPaymentProvider = () => providerByName(env.PAYMENT_PROVIDER);
 
 export function mockProvider(): MockProvider | null {
   const p = getPaymentProvider();

@@ -34,7 +34,7 @@ export function LoginForm() {
       setPending(false);
       setError(
         error.status === 429
-          ? "Terlalu banyak percobaan. Tunggu satu menit lalu coba lagi."
+          ? (error.message ?? "Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.")
           : error.status === 401 || error.code === "INVALID_EMAIL_OR_PASSWORD"
             ? "Email atau password salah."
             : "Tidak bisa masuk sekarang. Periksa koneksi lalu coba lagi.",

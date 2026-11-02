@@ -1,6 +1,6 @@
 # Panduan Pembayaran: Tunai, QRIS, Mesin EDC & Scanner
 
-Panduan ini menjelaskan cara menerima pembayaran di kasir Konten POS: tunai, **QRIS** (QR otomatis lunas atau QR statis), **kartu lewat mesin EDC**, dan transfer. Juga cara memakai **scanner barcode** di kasir.
+Panduan ini menjelaskan cara menerima pembayaran di kasir POS by lifistudio: tunai, **QRIS** (QR otomatis lunas atau QR statis), **kartu lewat mesin EDC**, dan transfer. Juga cara memakai **scanner barcode** di kasir.
 
 > **Ringkasan:** semua cara bayar bisa dipakai bersamaan. Pilih yang cocok untuk toko Anda.
 >
@@ -67,6 +67,35 @@ Bila belum memakai Midtrans, pilihan **QRIS** memakai QR **cetak/stiker** milik 
 
 > QRIS statis rawan salah nominal dan bukti transfer palsu. Untuk toko yang ramai, gunakan **QRIS dinamis**.
 
+### 3c. Memilih payment gateway QRIS dinamis
+
+Pilih satu lewat `PAYMENT_PROVIDER`. Semuanya memberi alur kasir yang sama: QR tampil di layar, lalu lunas otomatis. Bisa diganti kapan saja. QR lama tetap diproses selama kredensial gateway lamanya masih diisi.
+
+| Gateway | `PAYMENT_PROVIDER` | Env | Webhook |
+|---|---|---|---|
+| Midtrans | `midtrans` | `MIDTRANS_SERVER_KEY`, `MIDTRANS_IS_PRODUCTION` | `/api/payments/webhook/midtrans` |
+| Xendit | `xendit` | `XENDIT_SECRET_KEY`, `XENDIT_WEBHOOK_TOKEN` | `/api/payments/webhook/xendit` |
+| DOKU | `doku` | `DOKU_CLIENT_ID`, `DOKU_SECRET_KEY`, `DOKU_PRIVATE_KEY`, `DOKU_MERCHANT_ID`, `DOKU_TERMINAL_ID`, `DOKU_POSTAL_CODE`, `DOKU_IS_PRODUCTION` | `/api/payments/webhook/doku` |
+
+**Xendit** ([dokumentasi](https://docs.xendit.co/apidocs/create-payment-request))
+1. Dashboard › Settings › API Keys: buat secret key dengan izin Money-In. Mode test atau live mengikuti jenis key.
+2. Dashboard › Settings › Webhooks: salin **Webhook verification token** ke `XENDIT_WEBHOOK_TOKEN`, lalu arahkan event pembayaran ke URL webhook di atas.
+3. Xendit tidak menyediakan pembatalan QR yang belum dibayar. Setelah kasir membatalkan, QR masih bisa dibayar sampai kedaluwarsa. Bila itu terjadi, dana masuk tetapi transaksi tetap batal, dan tercatat di Audit log sebagai `payment_attention` untuk direfund manual. Masa berlaku QR yang pendek (`QRIS_EXPIRY_MINUTES`) mengurangi risikonya.
+
+**DOKU** ([dokumentasi](https://developers.doku.com/accept-payments/direct-api/snap/integration-guide/qris))
+1. Daftarkan QRIS di DOKU Back Office sampai disetujui. Dari sana didapat Client ID, Secret Key, Merchant ID, dan Terminal ID.
+2. Buat pasangan kunci RSA lalu daftarkan public key ke DOKU:
+   ```bash
+   openssl genrsa -out doku-private.pem 2048
+   openssl rsa -in doku-private.pem -pubout -out doku-public.pem
+   ```
+3. Isi `DOKU_PRIVATE_KEY` dengan isi `doku-private.pem` dalam satu baris, ganti baris baru dengan `\n`.
+4. Atur Notification URL ke URL webhook di atas. Isi notifikasi tidak dipercaya: aplikasi selalu menanyakan status langsung ke DOKU.
+
+> **Status:** adapter Xendit dan DOKU lulus `pnpm check:payments` dengan server tiruan sesuai dokumentasi resmi, **belum diuji dengan akun sungguhan**. Uji di sandbox dulu: buat QR, bayar, batalkan, biarkan kedaluwarsa. Khusus DOKU, dokumentasinya berbeda soal format tanda tangan, jadi perhatikan bila sandbox menolak dengan error signature.
+
+**Pembayaran ganda.** Satu dokumen hanya punya satu QR aktif, dan pembuatan QR yang bersamaan hanya menagih sekali. Bila pelanggan tetap membayar dua QR, dokumen lunas sekali dan pembayaran kedua tercatat di Audit log (`DUPLICATE_PAYMENT`) untuk direfund.
+
 ## 4. Mesin EDC (kartu debit/kredit)
 
 Ada dua cara memakai mesin EDC. Atur di kasir: **Perangkat › Mesin EDC**. Pengaturan berlaku untuk perangkat kasir itu saja.
@@ -74,11 +103,11 @@ Ada dua cara memakai mesin EDC. Atur di kasir: **Perangkat › Mesin EDC**. Peng
 | Cara | Cocok untuk | Yang dilakukan kasir |
 |---|---|---|
 | **Manual** (bawaan) | Semua mesin EDC dari bank mana pun | Ketik nominal di EDC, lalu ketik kode approval di kasir |
-| **Tersambung kabel (ECR)** | EDC dengan kabel ECR dan protokol yang didukung Konten POS | Tekan **Kirim ke EDC**. Nominal dan hasilnya otomatis |
+| **Tersambung kabel (ECR)** | EDC dengan kabel ECR dan protokol yang didukung POS by lifistudio | Tekan **Kirim ke EDC**. Nominal dan hasilnya otomatis |
 
 ### 4a. EDC manual (semua bank)
 
-Mesin EDC dari bank mana pun (BCA, Mandiri, BRI, BNI, dan lainnya) dipakai berdampingan dengan Konten POS:
+Mesin EDC dari bank mana pun (BCA, Mandiri, BRI, BNI, dan lainnya) dipakai berdampingan dengan POS by lifistudio:
 
 1. Di kasir pilih **EDC**. Total belanja tampil besar di layar.
 2. Di **mesin EDC**, ketik **nominal yang sama persis** dengan total di layar. Gesek/celup/tempel kartu, pelanggan memasukkan PIN, lalu tunggu slip keluar.
@@ -97,7 +126,7 @@ Kasir tidak perlu mengetik nominal di EDC maupun mengetik kode approval. Semuany
 
 **Syarat:**
 - Mesin EDC mendukung **ECR (integrasi kasir)** dan punya kabel **USB/serial**. Tanyakan ke bank pemberi EDC: *"Apakah EDC ini bisa integrasi ECR dengan aplikasi kasir?"*
-- **Protokol** EDC tersedia di Konten POS. Saat ini tersedia **Konten ECR v1**, protokol terbuka untuk EDC/aplikasi perantara dari vendor. Protokol khusus bank (BCA, Mandiri, BRI, BNI, …) ditambahkan setelah bank memberikan dokumen spesifikasi ECR-nya kepada toko. Berikan dokumen itu ke tim pengembang Anda; petunjuk teknisnya ada di dokumen ECR di folder docs repo.
+- **Protokol** EDC tersedia di POS by lifistudio. Saat ini tersedia **POS ECR v1**, protokol terbuka untuk EDC/aplikasi perantara dari vendor. Protokol khusus bank (BCA, Mandiri, BRI, BNI, …) ditambahkan setelah bank memberikan dokumen spesifikasi ECR-nya kepada toko. Berikan dokumen itu ke tim pengembang Anda; petunjuk teknisnya ada di dokumen ECR di folder docs repo.
 - Komputer kasir memakai **Chrome** atau **Edge**.
 
 **Menyambungkan (sekali per komputer kasir):**
@@ -117,7 +146,7 @@ Kasir tidak perlu mengetik nominal di EDC maupun mengetik kode approval. Semuany
 - Bila kartu sudah tertagih tetapi transaksi gagal disimpan (misalnya internet putus), tombol berubah menjadi **Simpan transaksi**, dan **kartu tidak ditagih lagi**. Bila transaksi memang tidak bisa dilanjutkan, lakukan **void** di mesin EDC, lalu tekan **Sudah di-void di mesin EDC**.
 - Bila EDC tidak menjawab sampai batas waktu, **cek slip/layar EDC dulu**. Bila tertulis APPROVED, tekan **Isi manual** lalu ketik kode approval-nya. **Jangan tagih ulang.**
 - Tombol **Isi manual** selalu tersedia. Bila kabel atau EDC bermasalah, kasir tetap bisa memakai cara 4a.
-- Nomor kartu lengkap, PIN, dan CVV **tidak pernah** disimpan Konten POS.
+- Nomor kartu lengkap, PIN, dan CVV **tidak pernah** disimpan POS by lifistudio.
 
 > **Latihan tanpa EDC sungguhan:** di server uji coba (simulator pembayaran aktif), pilih **Simulasi (latihan)** di Pengaturan EDC. Transaksi disetujui otomatis setelah beberapa detik; nominal berakhiran *13* selalu ditolak untuk latihan penolakan. Pilihan ini tidak muncul di server produksi.
 

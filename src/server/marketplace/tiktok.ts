@@ -81,7 +81,9 @@ export class TikTokShopAdapter implements MarketplaceAdapter {
   private async token(path: "/api/v2/token/get" | "/api/v2/token/refresh", params: Record<string, string>) {
     const qs = new URLSearchParams({ app_key: this.appKey, app_secret: this.appSecret, ...params });
     const res = await fetch(`${this.hosts.auth}${path}?${qs}`, { signal: AbortSignal.timeout(15_000) });
-    const data = (await res.json().catch(() => ({}))) as Envelope<{ access_token?: string; refresh_token?: string; access_token_expire_in?: number; seller_name?: string }>;
+    const data = (await res.json().catch(() => null)) as Envelope<{ access_token?: string; refresh_token?: string; access_token_expire_in?: number; seller_name?: string }> | null;
+    // Gangguan server bukan berarti token dicabut: jangan paksa admin menghubungkan ulang toko.
+    if (!data || res.status >= 500) throw new MarketplaceError(`TikTok Shop: server otorisasi merespons ${res.status}.`, "REMOTE");
     if (data.code !== 0 || !data.data?.access_token || !data.data.refresh_token) throw new MarketplaceError(`TikTok Shop: ${data.message || "token tidak diterima"}`, "AUTH");
     const d = data.data;
     // access_token_expire_in = waktu kedaluwarsa (unix detik).
@@ -223,7 +225,12 @@ export class TikTokShopAdapter implements MarketplaceAdapter {
   parseWebhook(rawBody: string, headers: Headers) {
     const expected = createHmac("sha256", this.appSecret).update(`${this.appKey}${rawBody}`).digest("hex");
     if (!safeEqualHex(expected, headers.get("authorization") ?? "")) throw new MarketplaceError("Signature webhook TikTok Shop tidak valid.", "AUTH");
-    const body = JSON.parse(rawBody) as { type?: number; shop_id?: string | number; data?: { order_id?: string } };
+    let body: { type?: number; shop_id?: string | number; data?: { order_id?: string } };
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      return null;
+    }
     // type 1 = perubahan status order; event lain diabaikan.
     if (body.type !== 1 || !body.shop_id || !body.data?.order_id) return null;
     return { shopId: String(body.shop_id), orderNos: [String(body.data.order_id)] };

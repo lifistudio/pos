@@ -1,0 +1,52 @@
+# Produksi: aplikasi + PostgreSQL + migrasi otomatis. Dipakai install.sh/install.ps1 dan Docker Compose di Dokploy.
+#   docker compose -f docker-compose.prod.yml up -d --build
+# Variabel dibaca dari .env (lihat .env.example). Wajib: POSTGRES_PASSWORD, BETTER_AUTH_SECRET, BETTER_AUTH_URL.
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Isi POSTGRES_PASSWORD di .env}
+      POSTGRES_DB: pos
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pos -d pos"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Jalan sekali setiap deploy: terapkan migrasi, lalu buat akun Owner bila kredensialnya masih ada di env.
+  migrate:
+    build:
+      context: .
+      target: tools
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgres://pos:${POSTGRES_PASSWORD}@db:5432/pos
+    command: ["sh", "-c", "pnpm db:migrate && if [ -n \"$$SEED_OWNER_PASSWORD\" ]; then pnpm db:seed; fi"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app:
+    build:
+      context: .
+      target: runner
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgres://pos:${POSTGRES_PASSWORD}@db:5432/pos
+    ports:
+      - "${POS_PORT:-3000}:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:

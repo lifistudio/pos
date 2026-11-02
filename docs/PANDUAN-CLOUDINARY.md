@@ -1,6 +1,6 @@
 # Panduan Cloudinary (Gambar, Video & Media)
 
-Konten POS menyimpan aset media — saat ini **gambar/thumbnail produk**, dan ke depan video serta file media lain — di **Cloudinary**. Cloudinary menyimpan file, memperkecil & mengubah format otomatis (WebP/AVIF sesuai browser), dan mengirimkannya lewat CDN sehingga gambar cepat tampil di kasir dan daftar produk.
+POS by lifistudio menyimpan aset media — saat ini **gambar/thumbnail produk**, dan ke depan video serta file media lain — di **Cloudinary**. Cloudinary menyimpan file, memperkecil & mengubah format otomatis (WebP/AVIF sesuai browser), dan mengirimkannya lewat CDN sehingga gambar cepat tampil di kasir dan daftar produk.
 
 > **Tanpa Cloudinary** aplikasi tetap jalan: gambar disimpan di database (cocok untuk mencoba/demo atau toko kecil). Untuk produksi, **gunakan Cloudinary**.
 
@@ -13,13 +13,13 @@ Browser ──(foto diperkecil ≤ 1024 px, WebP)──► PUT /api/v1/products/
                                                     │ cek izin product:update, cek isi file
                                                     ▼
                          Server ──(unggahan BERTANDA TANGAN dengan API secret)──► Cloudinary
-                                                    │  public_id: konten-pos/products/{id}
+                                                    │  public_id: pos-lifistudio/products/{id}
                                                     ▼
-          products.image_url = https://res.cloudinary.com/<cloud>/image/upload/c_fill,g_auto,w_480,h_480,f_auto,q_auto/v<versi>/konten-pos/products/{id}
+          products.image_url = https://res.cloudinary.com/<cloud>/image/upload/c_fill,g_auto,w_480,h_480,f_auto,q_auto/v<versi>/pos-lifistudio/products/{id}
 ```
 - **API secret tidak pernah dikirim ke browser.** Semua unggahan lewat server dan diperiksa hak aksesnya.
 - Mengganti gambar = file ditimpa di Cloudinary dengan versi baru, URL ikut berubah sehingga cache tidak basi. Menghapus gambar di aplikasi = file di Cloudinary ikut dihapus.
-- Gambar disimpan di folder `CLOUDINARY_FOLDER` (default `konten-pos`), subfolder `products/`.
+- Gambar disimpan di folder `CLOUDINARY_FOLDER` (default `pos-lifistudio`), subfolder `products/`.
 - Kasir offline tetap bisa menampilkan gambar yang pernah dimuat (disimpan service worker).
 
 ---
@@ -27,13 +27,13 @@ Browser ──(foto diperkecil ≤ 1024 px, WebP)──► PUT /api/v1/products/
 ## 2. Membuat akun & mengambil kredensial API
 
 1. Buka **https://cloudinary.com** → **Sign up** (gratis). Gunakan email bisnis Anda (akun sebaiknya atas nama pemilik usaha, bukan developer).
-2. Setelah masuk, Anda berada di **Console**. Akun gratis sudah mencakup satu *product environment* — cukup untuk Konten POS.
+2. Setelah masuk, Anda berada di **Console**. Akun gratis sudah mencakup satu *product environment* — cukup untuk POS by lifistudio.
 3. Ambil **Cloud name**:
    - Terlihat di **Dashboard** Console (bagian atas, "Cloud name"), atau di **Settings (ikon roda gigi) › Product environment**.
    - Contoh: `dxyz123ab` atau nama yang Anda pilih saat daftar.
 4. Ambil **API Key** dan **API Secret**:
    - Buka **Settings › API Keys** (di beberapa tampilan: **Settings › Access Keys**).
-   - Disarankan klik **Generate New API Key** dan beri nama, misal `konten-pos-production`, agar kunci aplikasi terpisah dari kunci lain dan bisa dicabut sendiri.
+   - Disarankan klik **Generate New API Key** dan beri nama, misal `pos-lifistudio-production`, agar kunci aplikasi terpisah dari kunci lain dan bisa dicabut sendiri.
    - **API Key** = deretan angka (contoh `123456789012345`).
    - **API Secret** = teks rahasia; klik ikon mata/salin untuk melihat. **Jangan pernah** dibagikan, ditempel di chat/AI, atau di-commit ke Git.
 5. (Opsional) Ganti nama folder tujuan dengan `CLOUDINARY_FOLDER` bila satu akun Cloudinary dipakai beberapa aplikasi, misal `toko-bandung-pos`.
@@ -51,7 +51,7 @@ Tambahkan ke file `.env` di server (atau menu **Environment Variables** di dashb
 CLOUDINARY_CLOUD_NAME=dxyz123ab
 CLOUDINARY_API_KEY=123456789012345
 CLOUDINARY_API_SECRET=isi-api-secret-anda
-CLOUDINARY_FOLDER=konten-pos
+CLOUDINARY_FOLDER=pos-lifistudio
 ```
 
 | Variabel | Wajib | Isi | Contoh format |
@@ -59,7 +59,7 @@ CLOUDINARY_FOLDER=konten-pos
 | `CLOUDINARY_CLOUD_NAME` | Ya (untuk aktif) | Cloud name dari Dashboard | huruf/angka/`-`/`_` |
 | `CLOUDINARY_API_KEY` | Ya | API Key (angka) | `123456789012345` |
 | `CLOUDINARY_API_SECRET` | Ya | API Secret (rahasia) | teks acak ± 27 karakter |
-| `CLOUDINARY_FOLDER` | Tidak | Folder induk di Media Library | `konten-pos` (default) |
+| `CLOUDINARY_FOLDER` | Tidak | Folder induk di Media Library | `pos-lifistudio` (default) |
 
 Aturan:
 - Ketiga variabel pertama harus **semuanya** terisi agar Cloudinary aktif. Bila salah satu kosong, aplikasi memakai penyimpanan database.
@@ -73,7 +73,7 @@ Aturan:
 
 1. Pemeriksaan tanpa akun (memastikan kode & tanda tangan benar): `pnpm check:media`.
 2. Uji sungguhan: login sebagai Owner/Admin → buka sebuah produk → **Informasi produk › Pilih gambar** → pilih foto.
-   - Berhasil: gambar tampil; di Console Cloudinary › **Media Library** muncul `konten-pos/products/<id produk>`.
+   - Berhasil: gambar tampil; di Console Cloudinary › **Media Library** muncul `pos-lifistudio/products/<id produk>`.
    - Klik kanan gambar › buka di tab baru: alamatnya diawali `https://res.cloudinary.com/<cloud-name>/image/upload/…`.
 3. Buka **Kasir**: produk tampil dengan gambar (pastikan **Tampilan › Tampilkan gambar** menyala).
 
@@ -102,7 +102,7 @@ Paket gratis Cloudinary memakai sistem **kredit bulanan** (gabungan penyimpanan,
 
 ## 7. Keamanan
 
-- API secret hanya di server. Unggahan selalu **bertanda tangan** dan melewati pengecekan izin `product:update` di API Konten; pengguna tanpa izin tidak bisa mengunggah.
+- API secret hanya di server. Unggahan selalu **bertanda tangan** dan melewati pengecekan izin `product:update` di API POS; pengguna tanpa izin tidak bisa mengunggah.
 - Server memeriksa isi file (bukan sekadar ekstensi): hanya JPG/PNG/WebP, ≤ 1 MB, sisi ≤ 2048 px. Foto diproses ulang di perangkat sehingga metadata lokasi (EXIF) hilang.
 - Jangan membuat **upload preset unsigned** untuk aplikasi ini — tidak diperlukan dan membuka celah unggahan tanpa izin.
 - Rotasi kunci: buat API key baru di Console → ganti di `.env` → restart → hapus kunci lama.

@@ -59,7 +59,7 @@ export function ConsentForm() {
     <div className="flex flex-col gap-5">
       <div>
         <h1 className="text-title-2-medium text-text-primary">
-          Izinkan <span className="break-words">{client.name}</span> mengakses Konten POS?
+          Izinkan <span className="break-words">{client.name}</span> mengakses POS by lifistudio?
         </h1>
         <p className="mt-1.5 text-body-regular text-text-secondary">
           Aplikasi ini akan kembali ke <span className="font-mono text-body-2-regular text-text-primary">{client.redirectHost}</span>. Izinkan hanya bila Anda sendiri yang baru saja menghubungkannya.

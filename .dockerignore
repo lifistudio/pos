@@ -1,11 +1,11 @@
 node_modules
 .next
 .git
-# .env yang dibuat Dokploy saat build harus ikut terbaca (next build memvalidasi env);
-# file env lokal tidak pernah ikut.
-.env.local
-.env.*.local
-.env.development*
+# Berkas env tidak pernah masuk image: Next standalone akan menyalinnya ke hasil build.
+# Env diberikan saat container berjalan; next build memakai nilai sementara di Dockerfile.
+.env
+.env.*
+!.env.example
 .data
 coverage
 *.tsbuildinfo

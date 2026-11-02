@@ -1,6 +1,6 @@
 # Panduan Deploy (Produksi)
 
-Langkah membawa Konten POS ke internet dengan aman. Untuk menjalankan di komputer sendiri (development), lihat [DEVELOPMENT.md](./DEVELOPMENT.md).
+Langkah membawa POS by lifistudio ke internet dengan aman. Untuk menjalankan di komputer sendiri (development), lihat [DEVELOPMENT.md](./DEVELOPMENT.md).
 
 ---
 
@@ -35,7 +35,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
 | `SEED_OWNER_EMAIL` / `SEED_OWNER_PASSWORD` | Saat setup | Akun Owner pertama. Password ≥ 12 karakter. Boleh dihapus dari env setelah setup |
 | `SEED_DEMO` | Tidak | `false` (default di produksi) = tanpa cabang/produk contoh |
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Disarankan | Penyimpanan gambar/media. Kosong = gambar disimpan di database |
-| `CLOUDINARY_FOLDER` | Tidak | Default `konten-pos` |
+| `CLOUDINARY_FOLDER` | Tidak | Default `pos-lifistudio` |
 | `PAYMENT_PROVIDER` | Ya | `midtrans` (QRIS dinamis) atau `none`. **Jangan `mock` di produksi** (simulator dimatikan otomatis) |
 | `MIDTRANS_SERVER_KEY` | Bila midtrans | Dari dashboard Midtrans (Settings › Access Keys) |
 | `MIDTRANS_IS_PRODUCTION` | Bila midtrans | `true` untuk transaksi sungguhan, `false` untuk sandbox |
@@ -57,7 +57,7 @@ Aplikasi memvalidasi env saat menyala; bila ada yang kurang/salah format, aplika
 corepack enable
 
 # 2. Ambil kode
-git clone https://github.com/<akun>/<repo>.git konten-pos && cd konten-pos
+git clone https://github.com/<akun>/<repo>.git pos-lifistudio && cd pos-lifistudio
 pnpm install --frozen-lockfile
 
 # 3. Database: terkelola, atau lokal lewat Docker
@@ -70,7 +70,7 @@ NODE_ENV=production pnpm db:seed      # role, tier, Owner (tanpa data contoh)
 pnpm build
 
 # 5. Jalankan sebagai service (PM2 contoh)
-npx pm2 start "pnpm start" --name konten-pos && npx pm2 save
+npx pm2 start "pnpm start" --name pos-lifistudio && npx pm2 save
 ```
 Reverse proxy **Caddy** (HTTPS otomatis):
 ```
@@ -80,7 +80,7 @@ pos.tokoanda.com {
 ```
 Pastikan proxy meneruskan header `X-Forwarded-For` (dipakai rate limit & audit log). Port database jangan dibuka ke internet.
 
-**Update versi baru:** `git pull && pnpm install --frozen-lockfile && pnpm db:migrate && pnpm build && npx pm2 restart konten-pos`. Backup database sebelum migrasi.
+**Update versi baru:** `git pull && pnpm install --frozen-lockfile && pnpm db:migrate && pnpm build && npx pm2 restart pos-lifistudio`. Backup database sebelum migrasi.
 
 ---
 
@@ -129,14 +129,15 @@ Simpan API key sebagai secret penjadwal.
 
 - Backup otomatis harian (fitur penyedia DB, atau `pg_dump` + simpan di luar server):
   ```bash
-  pg_dump "$DATABASE_URL" -Fc -f konten-$(date +%F).dump
+  pg_dump "$DATABASE_URL" -Fc -f pos-$(date +%F).dump
   ```
-- **Uji pemulihan** minimal sebulan sekali ke database terpisah: `pg_restore -d <db-uji> konten-YYYY-MM-DD.dump`.
+- **Uji pemulihan** minimal sebulan sekali ke database terpisah: `pg_restore -d <db-uji> pos-YYYY-MM-DD.dump`.
 - Gambar di Cloudinary dikelola Cloudinary; ekspor berkala bila diperlukan.
 
 ---
 
 ## 8. Checklist keamanan produksi
+- [ ] `TRUSTED_PROXY_HOPS` sesuai jumlah proxy (lihat PANDUAN-ENV).
 
 - [ ] HTTPS aktif; `BETTER_AUTH_URL` memakai `https://`.
 - [ ] `NODE_ENV=production` (cookie `Secure`, header HSTS, simulator payment/marketplace mati).

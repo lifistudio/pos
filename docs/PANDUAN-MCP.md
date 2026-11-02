@@ -10,7 +10,7 @@ Ada **dua cara masuk**:
 
 | Cara | Untuk | Yang perlu disiapkan |
 |---|---|---|
-| **Login (OAuth)** | Claude web, Claude Desktop, ChatGPT, dan aplikasi lain yang mendukung login MCP | Cukup **URL MCP**. Anda login dengan akun Konten POS lalu klik **Izinkan**. |
+| **Login (OAuth)** | Claude web, Claude Desktop, ChatGPT, dan aplikasi lain yang mendukung login MCP | Cukup **URL MCP**. Anda login dengan akun POS by lifistudio lalu klik **Izinkan**. |
 | **API key** | Claude Code, Codex, Cursor, Antigravity, Hermes, VS Code, Gemini CLI, skrip/integrasi | URL MCP + **API key** di header |
 
 Keduanya **hanya-baca** dan mengikuti hak akses akun. Akses lewat login juga dibatasi hanya-baca di sisi server, walaupun akun Anda Owner.
@@ -26,7 +26,7 @@ Keduanya **hanya-baca** dan mengikuti hak akses akun. Akses lewat login juga dib
 > - Buat **satu key per aplikasi/orang**, supaya bisa dicabut satu per satu.
 > - Buat key dari akun dengan hak akses **seperlunya**. AI mewarisi semua hak akses pemilik key.
 > - Jangan tempel key di chat, dokumen bersama, atau repo Git. Bila bocor, **Cabut** key itu lalu buat yang baru.
-> - Bila bisa, simpan key di **variabel lingkungan** `KONTEN_POS_API_KEY`, bukan langsung di file konfigurasi.
+> - Bila bisa, simpan key di **variabel lingkungan** `POS_API_KEY`, bukan langsung di file konfigurasi.
 
 Server menerima key lewat header `x-api-key: <key>` **atau** `Authorization: Bearer <key>`, dengan transport **Streamable HTTP**.
 
@@ -37,17 +37,17 @@ Server menerima key lewat header `x-api-key: <key>` **atau** `Authorization: Bea
 Jalankan di terminal:
 
 ```bash
-claude mcp add --transport http konten-pos https://pos.toko-anda.com/api/mcp --header "x-api-key: <API_KEY>"
+claude mcp add --transport http pos-lifistudio https://pos.toko-anda.com/api/mcp --header "x-api-key: <API_KEY>"
 ```
 
-Buka Claude Code, ketik `/mcp`, dan pastikan **konten-pos** berstatus *connected*.
+Buka Claude Code, ketik `/mcp`, dan pastikan **pos-lifistudio** berstatus *connected*.
 
 ## 3. Claude web (claude.ai) & Claude Desktop: Connectors (login)
 
 1. Buka **Settings › Connectors › Add custom connector**. Di Team/Enterprise, admin menambahkannya lewat **Organization settings › Connectors**.
-2. **Name:** `Konten POS`. **Remote MCP server URL:** URL MCP Anda (HTTPS publik). Pengaturan lanjutan (OAuth Client ID/Secret, Request headers) **dikosongkan**.
-3. Klik **Add**, lalu **Connect**. Halaman **Izinkan aplikasi AI** dari Konten POS terbuka. Login bila diminta, periksa nama aplikasi dan alamat tujuannya (*claude.ai*), lalu klik **Izinkan**.
-4. Kembali ke Claude. Di kolom chat klik **+ › Connectors** lalu aktifkan **Konten POS**.
+2. **Name:** `POS by lifistudio`. **Remote MCP server URL:** URL MCP Anda (HTTPS publik). Pengaturan lanjutan (OAuth Client ID/Secret, Request headers) **dikosongkan**.
+3. Klik **Add**, lalu **Connect**. Halaman **Izinkan aplikasi AI** dari POS by lifistudio terbuka. Login bila diminta, periksa nama aplikasi dan alamat tujuannya (*claude.ai*), lalu klik **Izinkan**.
+4. Kembali ke Claude. Di kolom chat klik **+ › Connectors** lalu aktifkan **POS by lifistudio**.
 
 Koneksi muncul di **Pengaturan › API key & MCP › Aplikasi terhubung**. Klik **Putuskan** untuk mencabut akses kapan saja. Sesi login berlaku 30 hari sejak terakhir dipakai; setelah itu Claude meminta login ulang.
 
@@ -63,57 +63,57 @@ Cara ini bisa memakai `localhost` saat mencoba di komputer sendiri. Untuk server
 ```json
 {
   "mcpServers": {
-    "konten-pos": {
+    "pos-lifistudio": {
       "command": "npx",
-      "args": ["-y", "mcp-remote@latest", "https://pos.toko-anda.com/api/mcp", "--header", "x-api-key:${KONTEN_POS_API_KEY}"],
-      "env": { "KONTEN_POS_API_KEY": "<API_KEY>" }
+      "args": ["-y", "mcp-remote@latest", "https://pos.toko-anda.com/api/mcp", "--header", "x-api-key:${POS_API_KEY}"],
+      "env": { "POS_API_KEY": "<API_KEY>" }
     }
   }
 }
 ```
 
-3. Simpan, **tutup penuh** Claude Desktop (termasuk dari tray), lalu buka lagi. Menu alat di kolom chat menampilkan alat Konten POS.
+3. Simpan, **tutup penuh** Claude Desktop (termasuk dari tray), lalu buka lagi. Menu alat di kolom chat menampilkan alat POS by lifistudio.
 
 > `mcp-remote` adalah jembatan open-source (npm) yang menyambungkan Claude Desktop ke server MCP jarak jauh. Paket ini diunduh dan dijalankan di komputer Anda saat Claude Desktop dibuka. Tulis `x-api-key:${…}` **tanpa spasi** setelah titik dua (spasi bermasalah di Windows).
 
 ## 5. ChatGPT
 
 1. **Settings › Apps & Connectors › Advanced settings**, lalu nyalakan **Developer mode**. Tersedia di paket Plus/Pro/Business/Enterprise/Edu; di workspace perlu diizinkan admin.
-2. Kembali ke **Apps & Connectors › Create**. Isi **Name** `Konten POS` dan **MCP server URL** (HTTPS publik).
+2. Kembali ke **Apps & Connectors › Create**. Isi **Name** `POS by lifistudio` dan **MCP server URL** (HTTPS publik).
 3. **Authentication:** pilih **OAuth**. Centang pernyataan risiko, lalu **Create**.
-4. Halaman **Izinkan aplikasi AI** dari Konten POS terbuka. Login, periksa nama aplikasi dan alamat tujuannya (*chatgpt.com*), lalu klik **Izinkan**.
-5. Di chat pilih **+ › Developer mode › Konten POS**.
+4. Halaman **Izinkan aplikasi AI** dari POS by lifistudio terbuka. Login, periksa nama aplikasi dan alamat tujuannya (*chatgpt.com*), lalu klik **Izinkan**.
+5. Di chat pilih **+ › Developer mode › POS by lifistudio**.
 
-> Bila ChatGPT di akun Anda menawarkan **API key / Bearer token**, cara itu juga bisa: isi API key, dan ChatGPT mengirimnya sebagai `Authorization: Bearer`. **No authentication** tidak didukung, karena Konten POS sengaja tidak membuka data tanpa login.
+> Bila ChatGPT di akun Anda menawarkan **API key / Bearer token**, cara itu juga bisa: isi API key, dan ChatGPT mengirimnya sebagai `Authorization: Bearer`. **No authentication** tidak didukung, karena POS by lifistudio sengaja tidak membuka data tanpa login.
 
 ## 6. Codex (OpenAI): CLI, IDE & aplikasi
 
-Simpan key di variabel lingkungan `KONTEN_POS_API_KEY`, lalu tambahkan ke `~/.codex/config.toml`:
+Simpan key di variabel lingkungan `POS_API_KEY`, lalu tambahkan ke `~/.codex/config.toml`:
 
 ```toml
-[mcp_servers.konten-pos]
+[mcp_servers.pos-lifistudio]
 url = "https://pos.toko-anda.com/api/mcp"
-bearer_token_env_var = "KONTEN_POS_API_KEY"
+bearer_token_env_var = "POS_API_KEY"
 ```
 
 Atau lewat perintah:
 
 ```bash
-codex mcp add konten-pos --url https://pos.toko-anda.com/api/mcp --bearer-token-env-var KONTEN_POS_API_KEY
+codex mcp add pos-lifistudio --url https://pos.toko-anda.com/api/mcp --bearer-token-env-var POS_API_KEY
 ```
 
 Konfigurasi ini dipakai bersama oleh Codex CLI, ekstensi IDE, dan aplikasi Codex. Cek dengan `codex mcp list`, atau `/mcp` di dalam Codex.
 
 ## 7. Cursor
 
-Simpan key di variabel lingkungan `KONTEN_POS_API_KEY`. Tambahkan ke `~/.cursor/mcp.json` (berlaku untuk semua proyek) atau `.cursor/mcp.json` (satu proyek):
+Simpan key di variabel lingkungan `POS_API_KEY`. Tambahkan ke `~/.cursor/mcp.json` (berlaku untuk semua proyek) atau `.cursor/mcp.json` (satu proyek):
 
 ```json
 {
   "mcpServers": {
-    "konten-pos": {
+    "pos-lifistudio": {
       "url": "https://pos.toko-anda.com/api/mcp",
-      "headers": { "x-api-key": "${env:KONTEN_POS_API_KEY}" }
+      "headers": { "x-api-key": "${env:POS_API_KEY}" }
     }
   }
 }
@@ -129,7 +129,7 @@ Cek di **Cursor Settings › MCP** (titik hijau = terhubung).
 ```json
 {
   "mcpServers": {
-    "konten-pos": {
+    "pos-lifistudio": {
       "serverUrl": "https://pos.toko-anda.com/api/mcp",
       "headers": { "x-api-key": "<API_KEY>" }
     }
@@ -145,13 +145,13 @@ Tambahkan ke `~/.hermes/config.yaml`:
 
 ```yaml
 mcp_servers:
-  konten-pos:
+  pos-lifistudio:
     url: "https://pos.toko-anda.com/api/mcp"
     headers:
       x-api-key: "<API_KEY>"
 ```
 
-Di Hermes jalankan `/reload-mcp`, atau uji dari terminal dengan `hermes mcp test konten-pos`.
+Di Hermes jalankan `/reload-mcp`, atau uji dari terminal dengan `hermes mcp test pos-lifistudio`.
 
 ## 10. VS Code (GitHub Copilot)
 
@@ -159,12 +159,12 @@ Di Hermes jalankan `/reload-mcp`, atau uji dari terminal dengan `hermes mcp test
 
 ```json
 {
-  "inputs": [{ "type": "promptString", "id": "konten-pos-key", "description": "API key Konten POS", "password": true }],
+  "inputs": [{ "type": "promptString", "id": "pos-lifistudio-key", "description": "API key POS by lifistudio", "password": true }],
   "servers": {
-    "konten-pos": {
+    "pos-lifistudio": {
       "type": "http",
       "url": "https://pos.toko-anda.com/api/mcp",
-      "headers": { "x-api-key": "${input:konten-pos-key}" }
+      "headers": { "x-api-key": "${input:pos-lifistudio-key}" }
     }
   }
 }
@@ -174,14 +174,14 @@ VS Code meminta API key saat server pertama dijalankan dan menyimpannya dengan a
 
 ## 11. Gemini CLI
 
-Simpan key di `KONTEN_POS_API_KEY`, lalu tambahkan ke `~/.gemini/settings.json`:
+Simpan key di `POS_API_KEY`, lalu tambahkan ke `~/.gemini/settings.json`:
 
 ```json
 {
   "mcpServers": {
-    "konten-pos": {
+    "pos-lifistudio": {
       "httpUrl": "https://pos.toko-anda.com/api/mcp",
-      "headers": { "x-api-key": "$KONTEN_POS_API_KEY" }
+      "headers": { "x-api-key": "$POS_API_KEY" }
     }
   }
 }
@@ -218,4 +218,4 @@ npx -y mcp-remote@latest https://pos.toko-anda.com/api/mcp --header x-api-key:<A
 | *Permintaan tidak valid* di halaman persetujuan | Tautan login sudah kedaluwarsa atau aplikasi berubah alamat. Tutup halaman, lalu klik **Connect** ulang dari aplikasi AI. |
 | Aplikasi minta login ulang | Sesi login berlaku 30 hari sejak terakhir dipakai, atau aplikasi sudah **diputus** di Aplikasi terhubung. Login lagi. |
 | AI bisa membaca tapi tidak bisa mengubah data | Benar. Akses lewat login dan API key sama-sama hanya-baca. |
-| AI menjawab "tidak bisa mengubah data" | Benar, MCP Konten POS hanya-baca. Ubah data lewat aplikasi. |
+| AI menjawab "tidak bisa mengubah data" | Benar, MCP POS by lifistudio hanya-baca. Ubah data lewat aplikasi. |

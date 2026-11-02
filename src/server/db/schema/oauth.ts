@@ -4,7 +4,7 @@ import { user } from "./auth";
 import { id } from "./core";
 
 /**
- * OAuth 2.1 untuk MCP (Claude, ChatGPT, dll. login dengan akun Konten POS). Klien mendaftar sendiri
+ * OAuth 2.1 untuk MCP (Claude, ChatGPT, dll. login dengan akun POS by lifistudio). Klien mendaftar sendiri
  * (Dynamic Client Registration), PKCE S256 wajib, token disimpan sebagai hash SHA-256 (seperti API key).
  */
 export const oauthClients = pgTable("oauth_clients", {

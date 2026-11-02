@@ -9,11 +9,11 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "sw
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono-source", display: "swap" });
 
 export const metadata: Metadata = {
-  title: { default: "Konten POS", template: "%s · Konten POS" },
+  title: { default: "POS by lifistudio", template: "%s · POS by lifistudio" },
   description: "Sistem POS multi-cabang: produk, stok, transaksi, voucher, dan membership.",
-  applicationName: "Konten POS",
-  appleWebApp: { capable: true, title: "Konten", statusBarStyle: "default" },
-  icons: { icon: "/icons/icon-192.png", apple: "/icons/apple-touch-icon.png" },
+  applicationName: "POS by lifistudio",
+  appleWebApp: { capable: true, title: "POS", statusBarStyle: "default" },
+  icons: { icon: [{ url: "/brand/logo-tile.svg", type: "image/svg+xml" }, { url: "/icons/icon-192.png", type: "image/png" }], apple: "/icons/apple-touch-icon.png" },
 };
 
 export const viewport: Viewport = {

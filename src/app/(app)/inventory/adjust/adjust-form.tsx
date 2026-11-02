@@ -56,10 +56,12 @@ export function AdjustStockForm() {
     }
   }
 
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
   const submit = useMutation({
     mutationFn: () =>
       api("/inventory/adjustments", {
         method: "POST",
+        headers: { "idempotency-key": idempotencyKey },
         body: { branchId, type: mode, reason: reason.trim(), items: lines.map((l) => ({ variantId: l.id, qtyChange: l.qty })) },
       }),
     onSuccess: () => {

@@ -65,6 +65,7 @@ export function ReturnForm({ sale, onDone, onCancel }: { sale: ReturnableSale; o
     .map(([saleItemId, n]) => ({ saleItemId, qty: n }));
   const calc = computeReturn({ ...sale, total: sale.total - (sale.shippingFee ?? 0) }, sale.items, picks);
 
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
   const submit = useMutation({
     mutationFn: async () => {
       // Tanpa hak retur: kepala toko menyetujui dengan PIN di perangkat ini.
@@ -75,7 +76,7 @@ export function ReturnForm({ sale, onDone, onCancel }: { sale: ReturnableSale; o
       }
       return api<{ data: CreatedReturn }>(`/sales/${sale.id}/returns`, {
         method: "POST",
-        headers: approvalId ? { "x-approval-id": approvalId } : undefined,
+        headers: { "idempotency-key": idempotencyKey, ...(approvalId ? { "x-approval-id": approvalId } : {}) },
         body: {
           items: picks.map((p) => ({ ...p, restock: !damaged[p.saleItemId] })),
           refundMethod: method,

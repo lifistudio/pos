@@ -1,10 +1,11 @@
 import "server-only";
-import { and, asc, count, desc, eq, gt, ilike, inArray, lt, lte, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, inArray, lt, lte, or, sql, type SQL } from "drizzle-orm";
 import { db, type Tx } from "@/server/db";
 import { branches, inventoryLevels, products, productVariants, stockMovements, user } from "@/server/db/schema";
 import type { Actor } from "@/server/api/context";
 import { ApiError, forbidden } from "@/server/api/errors";
 import { decodeCursor, encodeCursor, toPageMeta } from "@/server/api/pagination";
+import { scheduleStockPush } from "@/server/marketplace/stock-sync";
 import { branchScope, can } from "@/server/rbac/access";
 import { matchAllTerms } from "@/server/db/search";
 import { writeAudit } from "./audit.service";
@@ -84,6 +85,7 @@ export async function applyStockChanges(tx: Tx, actor: Actor | null, changes: St
       actorId: actor?.userId ?? null,
     })),
   );
+  scheduleStockPush(rows.map((r) => r.branchId));
   return rows.map(({ branchId, variantId }) => ({ branchId, variantId, onHand: balances.get(`${branchId}:${variantId}`)! }));
 }
 
@@ -257,6 +259,7 @@ export async function reserveStock(tx: Tx, rows: StockReservation[]) {
   if (failed.length) {
     throw new ApiError(409, "INSUFFICIENT_STOCK", "Stok tersedia tidak cukup untuk direservasi.", { items: failed.map(({ branchId, variantId }) => ({ branchId, variantId })) });
   }
+  scheduleStockPush(sorted.map((r) => r.branchId));
 }
 
 /** Lepas reservasi (order batal/kedaluwarsa, atau sebelum stok dipotong saat dikirim). */
@@ -272,4 +275,5 @@ export async function releaseStock(tx: Tx, rows: StockReservation[]) {
     FROM (VALUES ${values}) AS v(branch_id, variant_id, qty)
     WHERE il.branch_id = v.branch_id AND il.variant_id = v.variant_id
   `);
+  scheduleStockPush(rows.map((r) => r.branchId));
 }

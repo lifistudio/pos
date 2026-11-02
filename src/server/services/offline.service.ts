@@ -11,7 +11,7 @@ import { computeTotals } from "@/lib/pricing";
 import { writeAudit } from "./audit.service";
 import { applyStockChanges } from "./inventory.service";
 import { nextDocNumber } from "./numbering";
-import { getSale } from "./sale.service";
+import { getSale, lockOpenShift } from "./sale.service";
 
 /** Harga di paket offline berlaku untuk transaksi yang terjadi maks 48 jam setelah paket diterbitkan. */
 const PACK_VALID_MS = 48 * 3_600_000;
@@ -142,6 +142,7 @@ export async function syncOfflineSale(actor: Actor, input: OfflineSaleInput) {
 
   try {
     const result = await db.transaction(async (tx) => {
+      if (!(await lockOpenShift(tx, shift.id))) throw conflict("SHIFT_CLOSED", "Shift transaksi ini sudah ditutup. Minta admin mencatat transaksi secara manual.");
       // Kunci stok varian terkait lalu hitung yang bisa dipotong.
       const ids = [...lines.keys()];
       await tx.insert(inventoryLevels).values(ids.map((variantId) => ({ branchId: input.branchId, variantId }))).onConflictDoNothing();

@@ -13,6 +13,7 @@ import { simulateIntentPaid, syncLatest } from "@/server/services/payment.servic
 import { latestIntent } from "@/server/payments/intents";
 import { sweepExpiredIntents } from "@/server/services/pos-qris.service";
 import { conflict } from "../errors";
+import { idempotent } from "../idempotency";
 import { requirePermission } from "../middleware";
 import { pageMeta, pageQuery } from "../pagination";
 import { createRouter } from "../router";
@@ -128,7 +129,7 @@ export const onlineOrderRoutes = createRouter()
       path: "/online-orders",
       tags: ["Order online"],
       summary: "Buat order online manual; stok cabang sumber langsung di-reserve",
-      middleware: [requirePermission("online_order:create")] as const,
+      middleware: [requirePermission("online_order:create"), idempotent] as const,
       request: {
         body: body(
           z

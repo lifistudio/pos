@@ -1,4 +1,4 @@
-# Berkontribusi ke Konten POS
+# Berkontribusi ke POS by lifistudio
 
 Terima kasih ingin membantu! Kontribusi berupa laporan bug, saran fitur, perbaikan dokumentasi, maupun kode sangat diterima.
 
@@ -29,3 +29,7 @@ Terima kasih ingin membantu! Kontribusi berupa laporan bug, saran fitur, perbaik
 Sertakan: langkah mereproduksi, hasil yang diharapkan vs yang terjadi, perangkat/browser, dan screenshot. **Hapus data pribadi** dari screenshot. Celah keamanan → ikuti [SECURITY.md](SECURITY.md), bukan issue publik.
 
 Dengan berkontribusi, Anda setuju kontribusi dirilis di bawah [lisensi MIT](LICENSE).
+
+Perubahan alur transaksi, stok, marketplace, atau RBAC: tambahkan skenario di `scripts/checks/flows.check.mts` dan jalankan `pnpm check:flows` pada database sekali pakai (lihat README).
+
+Tampilan memakai komponen gratis [BoardUI](https://www.boardui.com). Jangan menyalin komponen BoardUI Pro ke repositori ini, lisensinya melarang publikasi. Logo dan nama tidak diubah lewat kontribusi, lihat [TRADEMARK.md](TRADEMARK.md).

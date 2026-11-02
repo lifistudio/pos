@@ -33,7 +33,7 @@ Open source dan self-hosted; generik untuk berbagai jenis usaha (fashion, F&B, k
 - Karena generik untuk segala usaha: fitur khusus jenis usaha (batch/kedaluwarsa, modifier F&B, nomor seri) dirancang sebagai opsi yang bisa diaktifkan, bukan bawaan wajib. **Belum diputuskan:** urutan prioritasnya.
 
 ## Brand Commitments
-- Nama sementara: **Konten** (logo menyusul).
+- Nama: **POS by lifistudio**. Logo: gulungan kertas struk yang membentuk huruf "p" (`public/brand`, `src/lib/brand.ts`). Jangan memakai ikon sebagai logo: dilarang Remix Icon License.
 - Gaya diminta owner: minimalis, modern, premium seperti boardui.com; semua elemen dari BoardUI; motion lewat Motion/GSAP secukupnya.
 
 ## Evidence on Hand

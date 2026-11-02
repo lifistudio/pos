@@ -152,28 +152,44 @@ export async function getShiftSummary(actor: Actor, shiftId: string) {
   };
 }
 
+/**
+ * Transaksi kas memegang kunci bersama pada baris shift (lihat `lockOpenShift`), tutup shift memegang kunci eksklusif.
+ * Jadi tutup shift menunggu transaksi yang sedang berjalan, dan tidak ada transaksi masuk setelah angka kas dihitung.
+ */
+async function lockOpenShift(tx: Tx, shiftId: string) {
+  const [row] = await tx.select({ status: shifts.status }).from(shifts).where(eq(shifts.id, shiftId)).for("share");
+  return row?.status === "OPEN";
+}
+
 export async function closeShift(actor: Actor, shiftId: string, input: { countedCash: number; note?: string | null }) {
-  const summary = await getShiftSummary(actor, shiftId);
-  const { shift } = summary;
-  if (shift.status !== "OPEN") throw conflict("SHIFT_CLOSED", "Shift ini sudah ditutup.");
-  const [{ pending }] = await db.select({ pending: count() }).from(sales).where(and(eq(sales.shiftId, shiftId), eq(sales.status, "PENDING")));
-  if (pending > 0) throw conflict("SHIFT_HAS_PENDING_QRIS", "Masih ada QRIS yang menunggu pembayaran. Selesaikan atau batalkan dulu.");
+  const { shift } = await getShiftSummary(actor, shiftId);
   if (shift.userId !== actor.userId && !can(actor.access, "pos:void", shift.branchId)) {
     throw new ApiError(403, "FORBIDDEN", "Hanya kasir pemilik shift atau kepala toko yang bisa menutup shift.");
   }
-  const [closed] = await db
-    .update(shifts)
-    .set({ status: "CLOSED", closedAt: new Date(), countedCash: input.countedCash, expectedCash: summary.expectedCash, note: input.note ?? null })
-    .where(and(eq(shifts.id, shiftId), eq(shifts.status, "OPEN")))
-    .returning();
-  if (!closed) throw conflict("SHIFT_CLOSED", "Shift ini sudah ditutup.");
-  await writeAudit(actor, {
-    action: "close",
-    entity: "shift",
-    entityId: shiftId,
-    after: { expectedCash: summary.expectedCash, countedCash: input.countedCash, difference: input.countedCash - summary.expectedCash },
+  return db.transaction(async (tx) => {
+    const [locked] = await tx.select({ status: shifts.status }).from(shifts).where(eq(shifts.id, shiftId)).for("update");
+    if (locked?.status !== "OPEN") throw conflict("SHIFT_CLOSED", "Shift ini sudah ditutup.");
+    const [{ pending }] = await tx.select({ pending: count() }).from(sales).where(and(eq(sales.shiftId, shiftId), eq(sales.status, "PENDING")));
+    if (pending > 0) throw conflict("SHIFT_HAS_PENDING_QRIS", "Masih ada QRIS yang menunggu pembayaran. Selesaikan atau batalkan dulu.");
+    // Dihitung setelah kunci didapat, agar transaksi yang tadi berjalan ikut terhitung.
+    const summary = await getShiftSummary(actor, shiftId);
+    const [closed] = await tx
+      .update(shifts)
+      .set({ status: "CLOSED", closedAt: new Date(), countedCash: input.countedCash, expectedCash: summary.expectedCash, note: input.note ?? null })
+      .where(eq(shifts.id, shiftId))
+      .returning();
+    await writeAudit(
+      actor,
+      {
+        action: "close",
+        entity: "shift",
+        entityId: shiftId,
+        after: { expectedCash: summary.expectedCash, countedCash: input.countedCash, difference: input.countedCash - summary.expectedCash },
+      },
+      tx,
+    );
+    return { ...summary, shift: closed, difference: input.countedCash - summary.expectedCash };
   });
-  return { ...summary, shift: closed, difference: input.countedCash - summary.expectedCash };
 }
 
 // ── Katalog kasir ───────────────────────────────────────────────────────
@@ -241,11 +257,21 @@ async function nextInvoiceNumber(tx: Tx, branch: { code: string; timezone: strin
   return `${key}/${String(row.value).padStart(4, "0")}`;
 }
 
-async function findByIdempotency(actor: Actor, key: string) {
-  const [existing] = await db.select({ id: sales.id, cashierId: sales.cashierId }).from(sales).where(eq(sales.idempotencyKey, key));
+async function findByIdempotency(actor: Actor, input: Pick<CheckoutInput, "idempotencyKey" | "items">, mode: "PAID" | "PENDING") {
+  const [existing] = await db.select({ id: sales.id, cashierId: sales.cashierId }).from(sales).where(eq(sales.idempotencyKey, input.idempotencyKey));
   if (!existing) return null;
   if (existing.cashierId !== actor.userId) throw conflict("IDEMPOTENCY_KEY_REUSED", "Kunci transaksi sudah dipakai.");
-  return getSale(actor, existing.id);
+  const sale = await getSale(actor, existing.id);
+  // Kunci sama untuk keranjang berbeda bukan percobaan ulang: mengembalikan transaksi lama berarti barang baru tidak tercatat.
+  const qtyOf = (rows: { variantId: string; qty: number }[]) => {
+    const m = new Map<string, number>();
+    for (const r of rows) m.set(r.variantId, (m.get(r.variantId) ?? 0) + r.qty);
+    return [...m].sort(([a], [b]) => a.localeCompare(b)).join("|");
+  };
+  if (qtyOf(sale.items) !== qtyOf(input.items)) throw new ApiError(422, "IDEMPOTENCY_KEY_REUSED", "Kunci transaksi sudah dipakai untuk keranjang lain. Ulangi pembayaran.");
+  // Bayar tunai dengan kunci QRIS yang belum lunas: jangan laporkan seolah transaksi sudah dibayar.
+  if (mode === "PAID" && sale.status !== "PAID") throw conflict("SALE_NOT_PAID", "Transaksi ini masih menunggu QRIS atau sudah dibatalkan. Selesaikan dulu, atau ulangi pembayaran.");
+  return sale;
 }
 
 /**
@@ -394,6 +420,8 @@ export async function quoteCart(
   };
 }
 
+export { lockOpenShift };
+
 export async function checkout(actor: Actor, input: CheckoutInput) {
   return createSale(actor, input, "PAID");
 }
@@ -407,7 +435,7 @@ export async function createPendingQrisSale(actor: Actor, input: Omit<CheckoutIn
 }
 
 async function createSale(actor: Actor, input: CheckoutInput, mode: "PAID" | "PENDING") {
-  const replay = await findByIdempotency(actor, input.idempotencyKey);
+  const replay = await findByIdempotency(actor, input, mode);
   if (replay) return replay;
 
   const branch = await getPosBranch(actor, input.branchId);
@@ -449,6 +477,7 @@ async function createSale(actor: Actor, input: CheckoutInput, mode: "PAID" | "PE
 
   try {
     const saleId = await db.transaction(async (tx) => {
+      if (!(await lockOpenShift(tx, shift.id))) throw conflict("NO_OPEN_SHIFT", "Shift baru saja ditutup. Buka shift lagi sebelum berjualan.");
       // Kunci baris customer: kuota per-customer & saldo poin aman dari dua kasir bersamaan.
       if (input.customerId) await tx.execute(sql`select 1 from customers where id = ${input.customerId} for update`);
       const cart = await buildCart(tx, cartParams);
@@ -563,7 +592,7 @@ async function createSale(actor: Actor, input: CheckoutInput, mode: "PAID" | "PE
     // Dua request dengan kunci sama bersamaan: yang kalah mengembalikan transaksi pemenang.
     const pg = (error as { cause?: { constraint_name?: string } }).cause;
     if (pg?.constraint_name === "sales_idempotency_uq") {
-      const again = await findByIdempotency(actor, input.idempotencyKey);
+      const again = await findByIdempotency(actor, input, mode);
       if (again) return again;
     }
     if (error instanceof ApiError && error.code === "INSUFFICIENT_STOCK") {
@@ -789,6 +818,7 @@ export async function voidSale(actor: Actor, id: string, reason: string, approva
   if (sale.sale.refundTotal > 0) throw conflict("SALE_HAS_RETURN", "Transaksi ini sudah punya retur. Gunakan retur untuk sisa barangnya.");
 
   await db.transaction(async (tx) => {
+    if (sale.sale.shiftId && !(await lockOpenShift(tx, sale.sale.shiftId))) throw conflict("SHIFT_CLOSED", "Shift baru saja ditutup. Gunakan retur untuk transaksi ini.");
     const approver = await authorizeOrApprove(tx, actor, "pos:void", sale.sale.branchId, approvalId, `sale:${id}`);
     const updated = await tx
       .update(sales)

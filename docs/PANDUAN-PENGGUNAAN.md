@@ -1,13 +1,13 @@
-# Panduan Penggunaan Konten POS
+# Panduan Penggunaan POS by lifistudio
 
 Panduan untuk pemilik, admin, kepala toko, staf stok, dan kasir. Bahasa sederhana, langkah demi langkah.
 Semua panduan juga bisa dibuka di aplikasi lewat menu **Panduan**. Panduan lain: [Pembayaran: QRIS, EDC & layar pelanggan](./PANDUAN-PEMBAYARAN.md) · [Printer struk](./PANDUAN-PRINTER.md) · [AI agent (MCP)](./PANDUAN-MCP.md) · [Marketplace](./PANDUAN-MARKETPLACE.md) · [Cloudinary (gambar & media)](./PANDUAN-CLOUDINARY.md) · [Pengaturan server (.env)](./PANDUAN-ENV.md) · [Deploy ke server](./PANDUAN-DEPLOY.md) · [Development](./DEVELOPMENT.md).
 
 ---
 
-## 1. Mengenal Konten POS
+## 1. Mengenal POS by lifistudio
 
-Konten POS adalah aplikasi kasir dan back-office untuk usaha dengan **satu atau banyak cabang/gudang**:
+POS by lifistudio adalah aplikasi kasir dan back-office untuk usaha dengan **satu atau banyak cabang/gudang**:
 - **Kasir (POS)** di toko: scan barcode, member & poin, voucher, tunai/QRIS/EDC/transfer, struk otomatis ke printer thermal, mesin EDC tersambung kabel, layar pelanggan, retur, dan **tetap jalan saat internet putus**.
 - **Back-office** di laptop/HP: produk, stok per cabang, transfer, stok opname, customer, voucher, order online, marketplace, laporan, pengguna & hak akses.
 - **API & MCP** untuk integrasi dan asisten AI (lihat [Panduan AI agent (MCP)](./PANDUAN-MCP.md)).
@@ -244,3 +244,9 @@ Database, kunci login, QRIS Midtrans, Cloudinary, dan marketplace diatur lewat *
 **Mesin EDC tidak menerima nominal dari kasir?** Mode kabel butuh EDC yang mendukung ECR dan protokolnya. Sementara itu pakai **Isi manual** (ketik kode approval). Lihat [Panduan pembayaran §4](./PANDUAN-PEMBAYARAN.md).
 
 **Data aman bila laptop kasir rusak?** Data ada di server. Hanya transaksi offline yang belum tersinkron yang tersimpan di perangkat — pastikan antrean kosong sebelum mengganti perangkat.
+
+## Ganti password
+
+Klik nama Anda di kiri bawah › **Ganti password**. Sesi di perangkat lain otomatis keluar. Lupa password: minta Owner atau admin mengaturnya ulang di **Pengaturan › Pengguna**; akun Owner hanya bisa diatur oleh Owner lain, jadi sebaiknya punya dua akun Owner.
+
+Setelah 5 kali salah password, akun dikunci 15 menit lalu terbuka sendiri.

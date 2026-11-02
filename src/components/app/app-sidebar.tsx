@@ -7,6 +7,7 @@ import {
   RiCloseLine,
   RiCoupon3Line,
   RiDashboardLine,
+  RiLockPasswordLine,
   RiLogoutBoxRLine,
   RiMapPin2Line,
   RiPriceTag3Line,
@@ -39,6 +40,7 @@ import { cx } from "@/utils/cx";
 import { BrandMark } from "./brand-mark";
 import { countPendingOffline } from "@/app/(pos)/pos/offline/outbox";
 import { ApprovalPinSheet } from "./approval-pin-sheet";
+import { ChangePasswordSheet } from "./change-password-sheet";
 import { clearPosShell } from "./service-worker";
 import { useToast } from "./toast";
 import { useSession } from "./session-context";
@@ -336,6 +338,7 @@ function AccountMenu({ collapsed }: { collapsed: boolean }) {
   const toast = useToast();
   const [open, setOpen] = useState(false);
   const [pinOpen, setPinOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
   const initials = me.name
     .split(/\s+/)
     .map((w) => w[0])
@@ -410,6 +413,22 @@ function AccountMenu({ collapsed }: { collapsed: boolean }) {
               </span>
             </DropdownItem>
           )}
+          {me.authType === "USER" && (
+            <DropdownItem
+              onSelect={() => {
+                setOpen(false);
+                setPasswordOpen(true);
+              }}
+            >
+              <span className="flex items-center gap-2">
+                <RiLockPasswordLine
+                  className="size-4 text-foreground-icon-secondary"
+                  aria-hidden
+                />
+                Ganti password
+              </span>
+            </DropdownItem>
+          )}
           <DropdownItem onSelect={signOut}>
             <span className="flex items-center gap-2">
               <RiLogoutBoxRLine
@@ -422,6 +441,7 @@ function AccountMenu({ collapsed }: { collapsed: boolean }) {
         </DropdownPopover>
       </Dropdown>
       <ApprovalPinSheet isOpen={pinOpen} onClose={() => setPinOpen(false)} />
+      <ChangePasswordSheet isOpen={passwordOpen} onClose={() => setPasswordOpen(false)} />
     </>
   );
 }

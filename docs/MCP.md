@@ -31,7 +31,7 @@ Sesuai spesifikasi otorisasi MCP. Implementasi: `src/server/services/oauth.servi
 ## Menghubungkan ke klien
 Claude Code:
 ```bash
-claude mcp add --transport http konten-pos http://localhost:3000/api/mcp --header "x-api-key: <API_KEY>"
+claude mcp add --transport http pos-lifistudio http://localhost:3000/api/mcp --header "x-api-key: <API_KEY>"
 ```
 Klien lain (Claude web/desktop, ChatGPT, Codex, Cursor, Antigravity, Hermes Agent, VS Code, Gemini CLI, dll.): lihat [PANDUAN-MCP.md](./PANDUAN-MCP.md). Konfigurasi siap salin per klien juga ada di halaman Pengaturan (`src/lib/mcp-clients.ts`).
 

@@ -41,7 +41,7 @@ export const marketplaceConnections = pgTable(
     index("marketplace_connections_branch_idx").on(t.branchId),uniqueIndex("marketplace_connections_shop_uq").on(t.provider, t.externalShopId)],
 );
 
-/** Produk/varian di marketplace dan pemetaannya ke varian Konten (otomatis lewat SKU, bisa diubah manual). */
+/** Produk/varian di marketplace dan pemetaannya ke varian POS (otomatis lewat SKU, bisa diubah manual). */
 export const marketplaceListings = pgTable(
   "marketplace_listings",
   {

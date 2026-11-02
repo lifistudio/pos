@@ -8,7 +8,7 @@ import { createHash } from "node:crypto";
 process.env.CLOUDINARY_CLOUD_NAME = "demo-cloud";
 process.env.CLOUDINARY_API_KEY = "123456789012345";
 process.env.CLOUDINARY_API_SECRET = "test_secret_value_123";
-process.env.CLOUDINARY_FOLDER = "konten-pos";
+process.env.CLOUDINARY_FOLDER = "pos-lifistudio";
 process.env.DATABASE_URL ??= "postgres://x:y@127.0.0.1:5433/x";
 process.env.BETTER_AUTH_SECRET ??= "x".repeat(32);
 process.env.BETTER_AUTH_URL ??= "http://localhost:3000";
@@ -26,7 +26,7 @@ assert.equal(signParams({ timestamp: 1315060510, public_id: "sample_image", eage
 ok("tanda tangan cocok dengan contoh dokumentasi");
 
 assert.equal(cloudinaryEnabled(), true);
-assert.equal(mediaPublicId("products", "abc"), "konten-pos/products/abc");
+assert.equal(mediaPublicId("products", "abc"), "pos-lifistudio/products/abc");
 ok("konfigurasi env terbaca & public_id berfolder");
 
 const calls: { url: string; form: FormData }[] = [];
@@ -48,11 +48,11 @@ function verifySigned(form: FormData) {
   assert.equal(form.get("api_secret"), null, "secret tidak pernah dikirim");
 }
 
-reply = { status: 200, body: { public_id: "konten-pos/products/abc", version: 1712345678, secure_url: "https://res.cloudinary.com/demo-cloud/image/upload/v1712345678/konten-pos/products/abc.webp", width: 800, height: 600, bytes: 52000, format: "webp" } };
-const up = await cloudinaryUpload({ data: Buffer.from("RIFF0000WEBPVP8 "), mime: "image/webp", publicId: "konten-pos/products/abc" });
+reply = { status: 200, body: { public_id: "pos-lifistudio/products/abc", version: 1712345678, secure_url: "https://res.cloudinary.com/demo-cloud/image/upload/v1712345678/pos-lifistudio/products/abc.webp", width: 800, height: 600, bytes: 52000, format: "webp" } };
+const up = await cloudinaryUpload({ data: Buffer.from("RIFF0000WEBPVP8 "), mime: "image/webp", publicId: "pos-lifistudio/products/abc" });
 assert.equal(calls[0].url, "https://api.cloudinary.com/v1_1/demo-cloud/image/upload");
 verifySigned(calls[0].form);
-assert.equal(calls[0].form.get("public_id"), "konten-pos/products/abc");
+assert.equal(calls[0].form.get("public_id"), "pos-lifistudio/products/abc");
 assert.equal(calls[0].form.get("overwrite"), "true");
 assert.equal(calls[0].form.get("invalidate"), "true");
 assert.ok(calls[0].form.get("file") instanceof Blob);
@@ -61,12 +61,12 @@ ok("unggah: endpoint, parameter, file, tanda tangan");
 
 assert.equal(
   cloudinaryUrl(up.publicId, up.version, "c_fill,g_auto,w_480,h_480,f_auto,q_auto"),
-  "https://res.cloudinary.com/demo-cloud/image/upload/c_fill,g_auto,w_480,h_480,f_auto,q_auto/v1712345678/konten-pos/products/abc",
+  "https://res.cloudinary.com/demo-cloud/image/upload/c_fill,g_auto,w_480,h_480,f_auto,q_auto/v1712345678/pos-lifistudio/products/abc",
 );
 ok("URL pengiriman dengan transformasi & versi");
 
 reply = { status: 200, body: { result: "ok" } };
-await cloudinaryDestroy("konten-pos/products/abc");
+await cloudinaryDestroy("pos-lifistudio/products/abc");
 assert.equal(calls[1].url, "https://api.cloudinary.com/v1_1/demo-cloud/image/destroy");
 verifySigned(calls[1].form);
 ok("hapus aset bertanda tangan");

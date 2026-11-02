@@ -17,6 +17,7 @@ import {
   sendTransfer,
   updateTransferDraft,
 } from "@/server/services/transfer.service";
+import { idempotent } from "../idempotency";
 import { requirePermission } from "../middleware";
 import { pageMeta, pageQuery } from "../pagination";
 import { createRouter } from "../router";
@@ -178,7 +179,7 @@ export const stockOpsRoutes = createRouter()
       path: "/stock-transfers",
       tags: ["Transfer stok"],
       summary: "Buat draf transfer",
-      middleware: [requirePermission("stock_transfer:create")] as const,
+      middleware: [requirePermission("stock_transfer:create"), idempotent] as const,
       request: {
         body: body(
           z

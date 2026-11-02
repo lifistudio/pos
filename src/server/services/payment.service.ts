@@ -4,7 +4,7 @@ import { db, type Tx } from "@/server/db";
 import { paymentEvents, paymentIntents } from "@/server/db/schema";
 import { ApiError } from "@/server/api/errors";
 import { latestIntent, type IntentReference } from "@/server/payments/intents";
-import { mockProvider, providerByName, type GatewayStatus } from "@/server/payments/provider";
+import { mockProvider, providerByName, type GatewayNotification, type GatewayStatus, type NotificationContext, type PaymentProvider } from "@/server/payments/provider";
 import { writeAudit } from "./audit.service";
 import { confirmOrderPayment } from "./online-order.service";
 import { cancelPendingSale, confirmPendingSale } from "./sale.service";
@@ -17,6 +17,13 @@ const FAILURE_REASON: Record<Exclude<GatewayStatus, "PAID" | "PENDING">, string>
   CANCELLED: "QRIS dibatalkan",
 };
 
+/** Dana masuk tetapi dokumen tidak bisa dilunasi: perlu refund/cek manual, tercatat di audit log. */
+const ATTENTION = ["ORDER_CANCELLED", "SALE_CANCELLED", "DUPLICATE_PAYMENT"];
+
+function flagForReview(tx: Tx, intent: Intent, outcome: string, amount: number) {
+  return writeAudit(null, { action: "payment_attention", entity: intent.referenceType, entityId: intent.referenceId, after: { outcome, gatewayOrderId: intent.gatewayOrderId, provider: intent.provider, amount } }, tx);
+}
+
 /**
  * Terapkan status gateway ke intent + dokumennya dalam satu transaksi, dibedakan per jenis rujukan:
  * order online (lunas → transaksi dibuat) atau transaksi kasir PENDING (lunas → PAID; gagal → dibalik).
@@ -24,7 +31,10 @@ const FAILURE_REASON: Record<Exclude<GatewayStatus, "PAID" | "PENDING">, string>
 async function applyGatewayStatus(tx: Tx, intent: Intent, status: GatewayStatus, amount: number, providerRef: string | null) {
   if (status === "PENDING") return "PENDING";
   if (status === "PAID") {
-    if (amount !== intent.amount) return "AMOUNT_MISMATCH";
+    if (amount !== intent.amount) {
+      await flagForReview(tx, intent, "AMOUNT_MISMATCH", amount);
+      return "AMOUNT_MISMATCH";
+    }
     const updated = await tx
       .update(paymentIntents)
       .set({ status: "PAID", paidAt: new Date(), providerRef: providerRef ?? intent.providerRef, updatedAt: new Date() })
@@ -34,9 +44,12 @@ async function applyGatewayStatus(tx: Tx, intent: Intent, status: GatewayStatus,
     // QR yang sempat ditutup (kedaluwarsa) tetapi tetap dibayar: dokumen masih dilunasi bila belum dibatalkan;
     // bila sudah dibatalkan, fungsi konfirmasi mengembalikan *_CANCELLED → perlu refund manual.
     const reference = providerRef ?? intent.gatewayOrderId;
-    return intent.referenceType === "pos_sale"
-      ? confirmPendingSale(tx, intent.referenceId, { amount, reference })
-      : confirmOrderPayment(tx, intent.referenceId, { method: "QRIS", reference, amount });
+    const result =
+      intent.referenceType === "pos_sale" ? await confirmPendingSale(tx, intent.referenceId, { amount, reference }) : await confirmOrderPayment(tx, intent.referenceId, { method: "QRIS", reference, amount });
+    // Intent ini baru saja lunas, tetapi dokumennya sudah lunas lewat jalur lain: pelanggan membayar dua kali.
+    const outcome = result === "ALREADY_PAID" ? "DUPLICATE_PAYMENT" : result;
+    if (ATTENTION.includes(outcome)) await flagForReview(tx, intent, outcome, amount);
+    return outcome;
   }
   const closed = await tx
     .update(paymentIntents)
@@ -48,14 +61,27 @@ async function applyGatewayStatus(tx: Tx, intent: Intent, status: GatewayStatus,
   return status;
 }
 
+const EMPTY_CONTEXT: NotificationContext = { headers: new Headers(), path: "" };
+
+/** Gateway yang notifikasinya hanya pemicu: status sebenarnya ditanyakan langsung ke gateway, isi webhook tidak dipercaya. */
+async function confirmWithGateway(provider: PaymentProvider, gatewayOrderId: string): Promise<GatewayNotification | null> {
+  const [intent] = await db.select().from(paymentIntents).where(and(eq(paymentIntents.provider, provider.name), eq(paymentIntents.gatewayOrderId, gatewayOrderId)));
+  if (!intent) return null;
+  const remote = await provider.getStatus(gatewayOrderId, intent.providerRef);
+  if (!remote || remote.status === "PENDING") return null;
+  return { gatewayOrderId, status: remote.status, amount: remote.amount, providerRef: remote.providerRef, eventKey: `${gatewayOrderId}:${remote.status}` };
+}
+
 /**
  * Webhook gateway: verifikasi signature → simpan event (unik per event_key) → terapkan status.
  * Semua dalam satu transaksi: bila gagal, event tidak tersimpan sehingga retry gateway diproses ulang.
  */
-export async function handleGatewayNotification(providerName: string, body: unknown) {
+export async function handleGatewayNotification(providerName: string, body: unknown, ctx: NotificationContext = EMPTY_CONTEXT) {
   const provider = providerByName(providerName);
   if (!provider) throw new ApiError(404, "PROVIDER_INACTIVE", "Gateway ini tidak aktif.");
-  const n = provider.parseNotification(body);
+  const parsed = provider.parseNotification(body, ctx);
+  const n = "verifyOrderId" in parsed ? await confirmWithGateway(provider, parsed.verifyOrderId) : parsed;
+  if (!n) return { outcome: "PENDING" };
   return db.transaction(async (tx) => {
     const [intent] = await tx
       .select()
@@ -69,14 +95,6 @@ export async function handleGatewayNotification(providerName: string, body: unkn
     if (!inserted.length) return { outcome: "DUPLICATE" };
     const outcome = intent ? await applyGatewayStatus(tx, intent, n.status, n.amount, n.providerRef) : "UNKNOWN_ORDER";
     await tx.update(paymentEvents).set({ outcome }).where(eq(paymentEvents.id, inserted[0].id));
-    if (["AMOUNT_MISMATCH", "ORDER_CANCELLED", "SALE_CANCELLED"].includes(outcome)) {
-      // Dana masuk tetapi dokumen tidak bisa dilunasi: perlu refund/cek manual — tercatat di audit log.
-      await writeAudit(
-        null,
-        { action: "payment_attention", entity: intent?.referenceType ?? "payment", entityId: intent?.referenceId ?? null, after: { outcome, gatewayOrderId: n.gatewayOrderId, amount: n.amount } },
-        tx,
-      );
-    }
     return { outcome };
   });
 }
@@ -88,7 +106,7 @@ export async function handleGatewayNotification(providerName: string, body: unkn
 export async function syncIntent(intent: Intent, minIntervalMs = 5_000) {
   if (intent.status !== "PENDING" || Date.now() - intent.updatedAt.getTime() < minIntervalMs) return;
   const provider = providerByName(intent.provider);
-  const remote = provider ? await provider.getStatus(intent.gatewayOrderId).catch(() => null) : null;
+  const remote = provider ? await provider.getStatus(intent.gatewayOrderId, intent.providerRef).catch(() => null) : null;
   if (remote && remote.status !== "PENDING") {
     await db.transaction((tx) => applyGatewayStatus(tx, intent, remote.status, remote.amount, remote.providerRef));
     return;
@@ -96,7 +114,7 @@ export async function syncIntent(intent: Intent, minIntervalMs = 5_000) {
   if (intent.expiresAt.getTime() < Date.now()) {
     // Beri jeda 1 menit untuk notifikasi lunas yang terlambat sebelum dianggap kedaluwarsa.
     if (Date.now() - intent.expiresAt.getTime() > 60_000 || !provider?.getStatus) {
-      await provider?.cancel?.(intent.gatewayOrderId).catch(() => null);
+      await provider?.cancel?.(intent.gatewayOrderId, intent.providerRef).catch(() => null);
       await db.transaction((tx) => applyGatewayStatus(tx, intent, "EXPIRED", intent.amount, null));
       return;
     }
@@ -120,6 +138,13 @@ export async function simulateIntentPaid(intent: Intent) {
 /** Kasir membatalkan QR: batalkan di gateway (bila didukung) lalu balik transaksi PENDING. */
 export async function cancelIntent(intent: Intent) {
   if (intent.status !== "PENDING") return;
-  await providerByName(intent.provider)?.cancel?.(intent.gatewayOrderId).catch(() => null);
+  const provider = providerByName(intent.provider);
+  // Bisa jadi pelanggan baru saja membayar: jangan batalkan transaksi yang dananya sudah masuk.
+  const remote = await provider?.getStatus(intent.gatewayOrderId, intent.providerRef).catch(() => null);
+  if (remote?.status === "PAID") {
+    await db.transaction((tx) => applyGatewayStatus(tx, intent, "PAID", remote.amount, remote.providerRef));
+    return;
+  }
+  await provider?.cancel?.(intent.gatewayOrderId, intent.providerRef).catch(() => null);
   await db.transaction((tx) => applyGatewayStatus(tx, intent, "CANCELLED", intent.amount, null));
 }

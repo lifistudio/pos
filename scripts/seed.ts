@@ -42,17 +42,14 @@ async function seedBranches() {
   return db.select().from(branches).where(inArray(branches.code, data.map((d) => d.code)));
 }
 
-async function seedOwner() {
-  const email = process.env.SEED_OWNER_EMAIL?.toLowerCase();
-  const password = process.env.SEED_OWNER_PASSWORD;
-  if (!email || !password) throw new Error("Isi SEED_OWNER_EMAIL dan SEED_OWNER_PASSWORD di .env");
-  if (!demo && password.length < 12) throw new Error("SEED_OWNER_PASSWORD minimal 12 karakter untuk produksi.");
+async function seedOwner(email: string, password: string, name: string) {
+  if (!demo && password.length < 12) throw new Error(`Password ${email} minimal 12 karakter untuk produksi.`);
 
   const [existing] = await db.select().from(user).where(eq(user.email, email));
   const userId = existing?.id ?? crypto.randomUUID();
   if (!existing) {
     const ctx = await auth.$context;
-    await db.insert(user).values({ id: userId, name: "Owner", email, emailVerified: true });
+    await db.insert(user).values({ id: userId, name, email, emailVerified: true });
     await db.insert(account).values({
       id: crypto.randomUUID(),
       accountId: userId,
@@ -67,6 +64,19 @@ async function seedOwner() {
   return userId;
 }
 
+/** Owner utama wajib; Owner kedua opsional, agar ada yang bisa mereset password bila salah satu lupa. */
+async function seedOwners() {
+  const email = process.env.SEED_OWNER_EMAIL?.toLowerCase();
+  const password = process.env.SEED_OWNER_PASSWORD;
+  if (!email || !password) throw new Error("Isi SEED_OWNER_EMAIL dan SEED_OWNER_PASSWORD di .env");
+  const ownerId = await seedOwner(email, password, "Owner");
+  const secondEmail = process.env.SEED_OWNER2_EMAIL?.toLowerCase();
+  const secondPassword = process.env.SEED_OWNER2_PASSWORD;
+  if (secondEmail && secondPassword) await seedOwner(secondEmail, secondPassword, "Owner 2");
+  else if (secondEmail || secondPassword) throw new Error("Owner kedua butuh SEED_OWNER2_EMAIL dan SEED_OWNER2_PASSWORD sekaligus.");
+  return ownerId;
+}
+
 async function seedCatalog(ownerId: string, branchRows: { id: string; code: string }[]) {
   const [{ value }] = await db.select({ value: count() }).from(products);
   if (value > 0) {
@@ -75,7 +85,7 @@ async function seedCatalog(ownerId: string, branchRows: { id: string; code: stri
   }
   const [brand] = await db
     .insert(brands)
-    .values({ name: "Konten", nameKey: nameKey("Konten") })
+    .values({ name: "POS", nameKey: nameKey("POS") })
     .onConflictDoUpdate({ target: brands.nameKey, set: { updatedAt: new Date() } })
     .returning({ id: brands.id });
   const brandId = brand.id;
@@ -187,12 +197,12 @@ async function main() {
   await seedRoles();
   await seedTiers();
   if (!demo) {
-    await seedOwner();
+    await seedOwners();
     console.log("Selesai. Masuk sebagai Owner, lalu buat cabang di Pengaturan › Cabang.");
     process.exit(0);
   }
   const branchRows = await seedBranches();
-  const ownerId = await seedOwner();
+  const ownerId = await seedOwners();
   await seedCatalog(ownerId, branchRows);
   process.exit(0);
 }

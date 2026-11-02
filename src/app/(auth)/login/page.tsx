@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { BrandMark } from "@/components/app/brand-mark";
 import { LoginForm } from "./login-form";
+import { LoginHelp } from "./login-help";
 
 export const metadata: Metadata = { title: "Masuk" };
 
@@ -19,9 +20,7 @@ export default function LoginPage() {
             <LoginForm />
           </Suspense>
         </section>
-        <p className="mt-6 text-body-2-regular text-text-tertiary">
-          Lupa password? Minta admin atau owner mengatur ulang dari menu Pengguna.
-        </p>
+        <LoginHelp />
       </div>
     </main>
   );

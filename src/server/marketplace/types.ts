@@ -8,7 +8,7 @@ export type Channel = "WEBSITE" | "WHATSAPP" | "INSTAGRAM" | "SHOPEE" | "TOKOPED
 export type Credentials = { accessToken: string; refreshToken: string; expiresAt: string; extra?: Record<string, string> };
 export type AdapterContext = { shopId: string; credentials: Credentials | null };
 
-/** Status order marketplace yang sudah dinormalisasi ke alur Konten. */
+/** Status order marketplace yang sudah dinormalisasi ke alur POS. */
 export type MpOrderStatus = "UNPAID" | "PAID" | "SHIPPED" | "COMPLETED" | "CANCELLED";
 
 export type MpOrderItem = { externalItemId: string; externalModelId: string; sku: string | null; name: string; qty: number; unitPrice: number };
@@ -92,9 +92,14 @@ export function verifyState(state: string, maxAgeMs = 15 * 60_000) {
   const [body, sig] = state.split(".");
   if (!body || !sig) return null;
   const expected = createHmac("sha256", key()).update(body).digest("base64url");
-  if (expected.length !== sig.length || !timingSafeEqual(Buffer.from(expected), Buffer.from(sig))) return null;
+  if (!safeEqualHex(expected, sig)) return null;
   const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as { userId: string; branchId: string; provider: string; ts: number };
   return Date.now() - payload.ts > maxAgeMs ? null : payload;
 }
 
-export const safeEqualHex = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
+/** Panjang dibandingkan per byte: header bisa berisi karakter multi-byte dan timingSafeEqual melempar bila panjang berbeda. */
+export function safeEqualHex(a: string, b: string) {
+  const x = Buffer.from(a);
+  const y = Buffer.from(b);
+  return x.length === y.length && timingSafeEqual(x, y);
+}

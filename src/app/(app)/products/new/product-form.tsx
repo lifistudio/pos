@@ -163,9 +163,10 @@ export function ProductForm() {
     return new Set([...counts].filter(([, n]) => n > 1).map(([c]) => c));
   }, [autoCodes, variants]);
 
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
   const create = useMutation({
     mutationFn: async (body: unknown) => {
-      const created = await api<{ data: { id: string; name: string } }>("/products", { method: "POST", body });
+      const created = await api<{ data: { id: string; name: string } }>("/products", { method: "POST", headers: { "idempotency-key": idempotencyKey }, body });
       let imageError: string | null = null;
       if (thumbnail) await uploadThumbnail(created.data.id, thumbnail).catch((e: Error) => (imageError = e.message));
       return { ...created, imageError };

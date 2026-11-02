@@ -153,3 +153,10 @@ Rencana: `/server/payments` (PaymentProvider untuk QRIS dinamis), `/server/jobs`
 - **SkillSpector (NVIDIA):** dipakai untuk memindai *agent skill* & MCP server yang dipasang (Impeccable, MCP BoardUI, dsb.) sebelum dipakai. Catatan: SkillSpector dirancang untuk skill AI agent; untuk package npm biasa dilengkapi dengan `npm audit` + pengecekan OSV.dev (SkillSpector juga memakai OSV untuk dependency). Hasil scan dicatat di `docs/SECURITY_LOG.md`.
 - **Impeccable:** `init` menghasilkan konteks produk & desain; jalankan audit (`detect`) sebelum setiap fitur UI dianggap selesai.
 - **Context7:** cek dokumentasi resmi versi terpasang sebelum menulis kode untuk library apa pun.
+
+## Idempotensi & konkurensi
+- Kunci alami bila ada: `sales.idempotency_key`, `online_orders` (kanal + nomor), `payment_events` (provider + event_key).
+- Selain itu middleware `idempotent` (`src/server/api/idempotency.ts`): aktif bila klien mengirim `Idempotency-Key`, hanya respons sukses disimpan, kunci sama dengan isi berbeda ditolak 422.
+- Kas: transaksi memegang kunci bersama baris shift (`lockOpenShift`), tutup shift memegang kunci eksklusif, sehingga angka kas tidak bisa bergeser setelah dihitung.
+- QRIS: pembuatan intent diserialkan per dokumen dengan advisory lock + indeks unik parsial.
+- Gateway: `PaymentProvider` di `src/server/payments`. `providerByName` tidak terbatas pada gateway aktif agar QR lama tetap diproses setelah pindah gateway.

@@ -49,11 +49,16 @@ Owner meminta pengerjaan dilanjutkan sebelum menjawab. Asumsi berikut dipakai da
 | Q-23 | SkillSpector untuk skill/MCP + `npm audit` untuk package npm. Analisis LLM SkillSpector tidak diaktifkan. |
 
 ## Terjawab
+- **Q-37 Lisensi BoardUI** (2026-11-02): komponen gratis berlisensi MIT, boleh di repo MIT. Disebut di README & NOTICE. Komponen Pro tidak boleh masuk repo.
+- **Q-12 Email** (2026-11-02): SMTP opsional lewat env, dipakai lupa password.
+- **Q-09 Payment gateway** (2026-11-02): Midtrans, Xendit, DOKU, dipilih lewat env.
+- **Q-18 Identitas brand** (2026-11-02): **POS by lifistudio**, logo gulungan struk. Warna antarmuka tetap accent biru BoardUI. → ADR-033.
+- **Q-38 Pemegang hak cipta** (2026-11-02): lifistudio. → LICENSE.
 - **Q-08 Penyimpanan file** (2026-10-20): **Cloudinary** untuk gambar, video, dan media lain. → ADR-025, PANDUAN-CLOUDINARY.md.
 - **Lisensi proyek** (2026-10-20): open source **MIT** di GitHub. → LICENSE, README, CONTRIBUTING, SECURITY.
 - **Q-05 Jenis produk** (2026-10-17): open source untuk **segala jenis bisnis**. → Fitur khusus usaha dibuat opsional (PRD §1, PRODUCT.md).
 - **Perangkat** (2026-10-17): laptop, tablet, HP sama pentingnya; semua harus responsif termasuk layar POS; scan barcode juga untuk audit per produk. → DataTable kartu di HP, ScanInput (scanner + kamera).
-- **Q-18 sebagian** (2026-10-17): nama sementara **"Konten"**; logo & warna brand belum ada (default BoardUI dipakai).
+- **Q-18 sebagian** (2026-10-17): nama sementara **"POS"**; logo & warna brand belum ada (default BoardUI dipakai).
 
 ## Pertanyaan baru (2026-10-18)
 - **Q-24 Tukar poin.** Berapa nilai 1 poin saat ditukar dan apakah ada minimal penukaran? Poin kedaluwarsa setelah berapa bulan? *(Sementara: Rp100/poin, min 10 poin, maks 50% tagihan — bisa diubah di Pengaturan › Poin & retur; kedaluwarsa belum ada.)*
@@ -61,8 +66,6 @@ Owner meminta pengerjaan dilanjutkan sebelum menjawab. Asumsi berikut dipakai da
 - **Q-26 Voucher massal.** Perlu kode unik sekali pakai dalam jumlah besar (misal 500 kode untuk influencer/kampanye)?
 - **Q-27 Permintaan stok.** Perlu alur cabang meminta barang (request) yang disetujui gudang sebelum dikirim, atau cukup gudang/cabang asal yang membuat transfer?
 - **Q-28 Pembekuan saat opname.** Saat opname berjalan, apakah penjualan barang di cabang itu harus diblokir otomatis, atau cukup peringatan?
-- **Q-38 Pemegang hak cipta di LICENSE.** Saat ini `Copyright (c) 2026 Konten POS contributors`. Mau diganti nama Anda/organisasi?
-- **Q-37 Lisensi komponen BoardUI gratis & aset demo.** CLI `boardui` berlisensi MIT, tetapi lisensi source komponen gratis yang disalin ke `src/components/base|application|foundations` tidak tertulis eksplisit. Mohon konfirmasi ke BoardUI bahwa boleh didistribusikan di repo MIT. Aset demo BoardUI (foto orang, logo BoardUI, ilustrasi) dan 15 komponen demo yang tidak dipakai **sudah dihapus** (2026-10-21).
 - **Q-36 Fitur kasir lanjutan.** Cetak label barcode sudah ada (33×15, 38×25, 50×25, 58×40 mm; gulungan/A4) — ukuran label & printer apa yang dipakai toko, perlu ditambah? Perlu juga (b) **scan dengan kamera HP** di layar kasir dan (c) **pembayaran split** (sebagian tunai, sebagian QRIS)? Keduanya belum ada.
 - **Q-35 Migrasi gambar.** Bila ada gambar tersimpan di database sebelum Cloudinary aktif, perlu tombol migrasi massal ke Cloudinary?
 - **Q-34 Laporan stok untuk MD.** PRD menyebut MD boleh melihat laporan stok tetapi tidak laporan keuangan. Saat ini laporan stok/pergerakan memakai `report:read` (yang juga membuka laporan penjualan), sehingga MD belum bisa melihatnya. Perlu permission terpisah (mis. `report:stock`)? Apakah MD boleh melihat nilai jual/nilai modal di valuasi, atau hanya unit?
@@ -71,4 +74,7 @@ Owner meminta pengerjaan dilanjutkan sebelum menjawab. Asumsi berikut dipakai da
 - **Q-31 Persetujuan.** Selain void, retur, dan diskon manual, aksi apa lagi yang butuh PIN kepala toko (buka laci kas, ubah harga di kasir, jual saat stok 0)? Batas diskon manual 30% sudah sesuai?
 - **Q-29 Retur.** Berapa hari batas retur (sementara 7 hari, bisa diubah)? Perlu tukar barang (exchange) dan store credit, atau cukup uang kembali? Apakah kasir boleh meretur dengan PIN kepala toko?
 - **Q-30 Order online.** Berapa lama batas bayar standar (sementara 24 jam)? Order online dapat poin member seperti di kasir? Masa berlaku QR di kasir cukup 15 menit (`QRIS_EXPIRY_MINUTES`)? Perlu layar kedua (customer display) untuk menampilkan QR?
-- **Q-39 EDC & QRIS otomatis.** Kerangka ECR, simulator, protokol terbuka Konten ECR v1, dan layar pelanggan sudah ada (ADR-031). Tersisa: bank/EDC apa yang dipakai di toko (BCA, Mandiri, BRI, BNI, lainnya)? Sudah punya dokumen spesifikasi ECR dari bank (untuk ditambahkan sebagai protokol)? Payment gateway QRIS yang dipakai/diinginkan (Midtrans sudah ada; Xendit, DOKU, lainnya)? Perlu kasir memindai QR dari aplikasi pelanggan (GoPay/OVO/DANA/ShopeePay)?
+- **Q-39 EDC & QRIS otomatis.** Kerangka ECR, simulator, protokol terbuka POS ECR v1, dan layar pelanggan sudah ada (ADR-031). Tersisa: bank/EDC apa yang dipakai di toko (BCA, Mandiri, BRI, BNI, lainnya)? Sudah punya dokumen spesifikasi ECR dari bank (untuk ditambahkan sebagai protokol)? Payment gateway QRIS yang dipakai/diinginkan (Midtrans sudah ada; Xendit, DOKU, lainnya)? Perlu kasir memindai QR dari aplikasi pelanggan (GoPay/OVO/DANA/ShopeePay)?
+- **Q-40 Akun marketplace uji.** Kapan akun sandbox Shopee dan toko uji TikTok Shop tersedia untuk menjalankan PANDUAN-MARKETPLACE §7?
+- **Q-41 Merek dagang.** Apakah nama POS by lifistudio akan didaftarkan? "POS" generik sehingga sulit dilindungi dan sulit dicari.
+- **Q-42 Akun sosial.** README menautkan `instagram.com/lifistudio` dan `tiktok.com/@lifistudio`. Pastikan nama akunnya benar.

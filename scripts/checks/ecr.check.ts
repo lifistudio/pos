@@ -1,6 +1,6 @@
 /**
  * Pemeriksaan EDC/ECR: framing STX/ETX/LRC, pengurai aliran byte (potongan acak, noise, LRC salah),
- * protokol Konten ECR v1, dan penyamaran nomor kartu. Jalankan: pnpm check:ecr
+ * protokol POS ECR v1, dan penyamaran nomor kartu. Jalankan: pnpm check:ecr
  */
 import assert from "node:assert/strict";
 import { ACK, encodeFrame, ETX, FrameParser, lrc, NAK, STX } from "../../src/lib/ecr-frame";
@@ -41,7 +41,7 @@ const f = events[1] as { type: "frame"; data: Uint8Array };
 assert.equal(new TextDecoder().decode(f.data), '{"v":1}');
 ok("pengurai aliran: potongan, noise, ACK/NAK, LRC salah");
 
-// Konten ECR v1
+// POS ECR v1
 const sale = JSON.parse(new TextDecoder().decode(kontenEcr.sale(150000, "ABC123")));
 assert.deepEqual(sale, { v: 1, cmd: "SALE", amount: 150000, currency: "IDR", ref: "ABC123" });
 const parse = (o: object) => kontenEcr.parse(enc.encode(JSON.stringify(o)));
@@ -52,7 +52,7 @@ const ap = parse({ v: 1, status: "APPROVED", approvalCode: "123456", rrn: "00011
 assert.equal(ap?.status, "approved");
 assert.equal(parse({ v: 2, status: "APPROVED", approvalCode: "1" }), null, "versi lain diabaikan");
 assert.equal(kontenEcr.parse(enc.encode("bukan json")), null);
-ok("Konten ECR v1: SALE, PROGRESS, DECLINED, APPROVED, validasi");
+ok("POS ECR v1: SALE, PROGRESS, DECLINED, APPROVED, validasi");
 
 // Penyamaran kartu (PCI DSS): hanya 4 digit terakhir
 assert.equal(maskPan("4111 1111 1111 4242"), "************4242");

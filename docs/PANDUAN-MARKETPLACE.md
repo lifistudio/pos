@@ -2,11 +2,11 @@
 
 Hubungkan toko **Shopee** dan **TikTok Shop / Tokopedia** agar:
 - **Order masuk otomatis** ke menu **Order online** (stok langsung di-reserve, status ikut berubah: dibayar → dikirim → selesai/batal).
-- **Stok marketplace mengikuti stok POS**: setiap penjualan di kasir, retur, transfer, atau opname mengirim stok terbaru ke marketplace.
+- **Stok marketplace mengikuti stok POS**: setelah penjualan di kasir, retur, transfer, atau opname, stok terbaru terkirim dalam beberapa detik. Cron 5 menit menjadi cadangan.
 
 Satu toko marketplace terhubung ke **satu cabang sumber stok**. Lazada direncanakan (adapter belum tersedia).
 
-> **Status:** adapter Shopee dan TikTok Shop/Tokopedia sudah diuji dengan pemeriksaan otomatis (`pnpm check:marketplace`) dan simulator, **belum dengan akun marketplace sungguhan**. Uji di sandbox/toko uji sebelum dipakai untuk toko utama.
+> **Status:** adapter Shopee dan TikTok Shop/Tokopedia lulus uji otomatis dan simulator, **belum diuji dengan akun marketplace sungguhan**. Jalankan §7 di sandbox/toko uji sebelum dipakai untuk toko utama.
 
 ---
 
@@ -16,15 +16,15 @@ Satu toko marketplace terhubung ke **satu cabang sumber stok**. Lazada direncana
 Marketplace ──(webhook: order berubah)──► /api/marketplace/webhook/{shopee|tiktok}
      ▲                                          │ verifikasi tanda tangan
      │                                          ▼
-     │                          Konten: tarik detail order → cocokkan SKU → reservasi stok
+     │                          POS: tarik detail order → cocokkan SKU → reservasi stok
      │                                          │
      └──────(update stok per SKU)◄──── stok cabang sumber − buffer
 Cadangan: cron POST /api/v1/marketplace/sync tiap 5 menit (menarik order yang terlewat & mengirim stok).
 ```
 
-**Pemetaan SKU**: produk marketplace dicocokkan ke varian Konten berdasarkan **SKU** (`seller_sku` di marketplace = SKU di Konten). Yang tidak cocok tampil di **Pemetaan produk** untuk dipetakan manual. Karena SKU di Konten dijamin unik, pemetaan otomatis aman.
+**Pemetaan SKU**: produk marketplace dicocokkan ke varian POS berdasarkan **SKU** (`seller_sku` di marketplace = SKU di POS). Yang tidak cocok tampil di **Pemetaan produk** untuk dipetakan manual. Karena SKU di POS dijamin unik, pemetaan otomatis aman.
 
-> Tips: bila memakai SKU otomatis Konten, salin SKU tersebut ke kolom SKU penjual di marketplace — pemetaan langsung terjadi.
+> Tips: bila memakai SKU otomatis POS, salin SKU tersebut ke kolom SKU penjual di marketplace — pemetaan langsung terjadi.
 
 ---
 
@@ -37,7 +37,7 @@ Cadangan: cron POST /api/v1/marketplace/sync tiap 5 menit (menarik order yang te
    node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
    ```
    Mengganti nilai ini kelak = semua toko harus dihubungkan ulang.
-4. Pastikan SKU produk di marketplace sama dengan SKU di Konten (bisa disusulkan lewat Pemetaan produk).
+4. Pastikan SKU produk di marketplace sama dengan SKU di POS (bisa disusulkan lewat Pemetaan produk).
 5. Jadwalkan cron (lihat §6).
 
 > **Keamanan:** semua kunci (partner key, app secret) hanya diisi di `.env` server atau dashboard hosting. Jangan ditempel di chat/AI, jangan di-commit ke Git.
@@ -68,7 +68,7 @@ Restart aplikasi setelah mengubah `.env`.
 ### 3.3 Menghubungkan toko
 1. **Pengaturan › Marketplace › Hubungkan toko** → pilih **Shopee** → pilih **cabang sumber stok** → **Lanjut ke halaman izin**.
 2. Login sebagai penjual di halaman Shopee dan **izinkan** aplikasi.
-3. Anda kembali ke Konten; toko tampil dengan status **Aktif**.
+3. Anda kembali ke POS; toko tampil dengan status **Aktif**.
 
 ---
 
@@ -106,7 +106,7 @@ Sama seperti Shopee: **Hubungkan toko** → **TikTok Shop / Tokopedia** → caba
 | Bagian | Fungsi |
 |---|---|
 | **Pengaturan** | **Sumber stok** (cabang), **Buffer stok** (unit yang ditahan agar tidak oversell, misal 2), **Tarik order otomatis**, **Kirim stok ke marketplace** |
-| **Pemetaan produk** | Daftar produk marketplace; yang **Belum dipetakan** dicocokkan manual dengan mencari varian Konten |
+| **Pemetaan produk** | Daftar produk marketplace; yang **Belum dipetakan** dicocokkan manual dengan mencari varian POS |
 | **Sinkron sekarang** | Tarik order & kirim stok segera (tanpa menunggu cron) |
 | **Order tertunda** | Order yang gagal diproses (misal SKU belum dipetakan) — dicoba ulang otomatis setelah dipetakan |
 | **Riwayat sinkron** | Log setiap sinkron/webhook: berhasil, sebagian, gagal + pesannya |
@@ -128,7 +128,39 @@ Pilihan penjadwal: cron di VPS (`crontab -e`), Vercel Cron, GitHub Actions `sche
 
 ---
 
-## 7. Mencoba tanpa akun marketplace
+## 7. Menguji integrasi
+
+Uji bertahap dari yang paling aman.
+
+**Tahap 1: otomatis, tanpa akun.**
+```bash
+pnpm check:marketplace
+```
+Memeriksa tanda tangan, OAuth, pemetaan order & katalog, resi, stok, webhook, dan penanganan error kedua adapter dengan server tiruan.
+
+Uji alur lengkap butuh database sekali pakai yang sudah dimigrasi, nama databasenya mengandung `check`:
+```bash
+DATABASE_URL=postgres://pos:pos_dev_password@127.0.0.1:5433/pos_check pnpm check:flows
+```
+
+**Tahap 2: simulator di aplikasi, tanpa akun.** Di development: **Hubungkan toko › Toko simulasi (dev)**. Panel **Simulator (development)** membuat order lewat jalur webhook yang sama dengan marketplace asli. Cocok untuk melatih staf. Tidak tersedia di production.
+
+**Tahap 3: sandbox Shopee / toko uji TikTok Shop.** Butuh aplikasi di domain HTTPS publik dan kredensial di §3–§4. Gunakan cabang dan produk uji. Periksa satu per satu:
+
+| # | Lakukan | Yang harus terjadi |
+|---|---|---|
+| 1 | Hubungkan toko | Kembali ke halaman toko, status **Aktif**, katalog tertarik |
+| 2 | Samakan satu SKU | Produk itu **Terpetakan** otomatis |
+| 3 | Buat order di sandbox, belum dibayar | Muncul di Order online sebagai menunggu bayar, stok ter-reserve |
+| 4 | Bayar order | Status **Dibayar**, Riwayat sinkron mencatat **Webhook** |
+| 5 | Atur pengiriman | Status **Dikirim**, **nomor resi terisi**, stok fisik berkurang |
+| 6 | Buat order lalu batalkan | Status **Dibatalkan**, reservasi lepas |
+| 7 | Jual barang yang sama di kasir POS | Dalam beberapa detik stok di marketplace ikut turun |
+| 8 | Ubah buffer jadi 2 | Stok di marketplace berkurang 2 dari stok tersedia |
+| 9 | Tunggu 4+ jam (Shopee) | Token diperbarui sendiri, status tetap **Aktif** |
+| 10 | Matikan webhook, buat order, klik **Sinkron sekarang** | Order tetap masuk lewat jalur cadangan |
+
+Bagian yang paling perlu diperhatikan di tahap ini, karena belum bisa dikonfirmasi ke dokumentasi resmi: **resi Shopee** (baris 5), dan pengambilan banyak order sekaligus di TikTok Shop. Toko Shopee multi-gudang mungkin juga butuh `location_id` saat update stok. Bila ada yang gagal, pesannya tampil di **Riwayat sinkron**.
 
 Di development (`NODE_ENV` bukan production): **Hubungkan toko › Toko simulasi (dev)**. Panel **Simulator (development)** di halaman toko membuat order seolah dari marketplace lewat jalur webhook yang sama — cocok untuk melatih staf. Simulator tidak tersedia di production.
 

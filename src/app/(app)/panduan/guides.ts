@@ -9,7 +9,7 @@ export const GUIDES = [
     slug: "penggunaan",
     short: "Penggunaan",
     file: "PANDUAN-PENGGUNAAN.md",
-    title: "Penggunaan Konten POS",
+    title: "Penggunaan POS by lifistudio",
     description: "Kasir, produk, stok, customer, voucher, laporan, dan pengaturan, langkah demi langkah.",
     audience: "Semua pengguna",
   },
@@ -66,14 +66,14 @@ export const GUIDES = [
     short: "Deploy",
     file: "PANDUAN-DEPLOY.md",
     title: "Deploy ke server",
-    description: "Membawa Konten POS ke internet dengan aman: database, domain, variabel lingkungan, backup.",
+    description: "Membawa POS by lifistudio ke internet dengan aman: database, domain, variabel lingkungan, backup.",
     audience: "Admin teknis",
   },
 ] as const;
 
 export type Guide = (typeof GUIDES)[number];
 
-export const PANDUAN_DESCRIPTION = "Cara memakai Konten POS serta menyambungkan perangkat dan layanan pendukung.";
+export const PANDUAN_DESCRIPTION = "Cara memakai POS by lifistudio serta menyambungkan perangkat dan layanan pendukung.";
 export const guideTabs = () => GUIDES.map((g) => ({ href: `/panduan/${g.slug}`, label: g.short }));
 
 export const findGuide = (slug: string) => GUIDES.find((g) => g.slug === slug) ?? null;

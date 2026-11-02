@@ -1,6 +1,6 @@
 # Panduan Pengaturan Server (.env)
 
-Konten POS membaca pengaturan rahasia (database, kunci login, payment gateway, Cloudinary, marketplace) dari **variabel lingkungan**, biasa disebut *env*. Panduan ini menjelaskan setiap variabel: fungsinya, wajib atau tidak, dan cara mendapatkan nilainya.
+POS by lifistudio membaca pengaturan rahasia (database, kunci login, payment gateway, Cloudinary, marketplace) dari **variabel lingkungan**, biasa disebut *env*. Panduan ini menjelaskan setiap variabel: fungsinya, wajib atau tidak, dan cara mendapatkan nilainya.
 
 > **Siapa yang mengisi?** Owner atau admin teknis yang memasang server. Kasir dan staf toko tidak perlu menyentuh env.
 >
@@ -38,6 +38,9 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
 
 `NODE_ENV` biasanya diisi otomatis (`development` saat `pnpm dev`, `production` saat `pnpm build`/`start` dan di hosting). Tidak perlu diisi manual.
 
+### `TRUSTED_PROXY_HOPS` (opsional, penting di produksi)
+Jumlah reverse proxy tepercaya di depan aplikasi, dipakai untuk membaca IP asli pengunjung. Bawaan `1` cocok untuk Dokploy/Traefik atau Nginx. Pakai `2` bila ada Cloudflare di depan Nginx, `0` bila aplikasi langsung terbuka ke internet. Nilai yang salah membuat IP di audit log keliru dan rate limit per IP bisa dilewati.
+
 ## 3. Akun Owner pertama
 
 Dipakai sekali oleh perintah `pnpm db:seed` untuk membuat akun Owner.
@@ -55,6 +58,9 @@ pnpm db:migrate
 pnpm db:seed
 ```
 
+### Owner kedua (opsional)
+`SEED_OWNER2_EMAIL` dan `SEED_OWNER2_PASSWORD` membuat akun Owner kedua saat `pnpm db:seed`. Keduanya harus diisi bersamaan. Akun Owner hanya bisa diatur ulang oleh Owner lain, jadi dua akun melindungi Anda bila satu password lupa.
+
 ## 4. Pembayaran QRIS dinamis (opsional)
 
 Tanpa variabel ini, kasir tetap bisa menerima **tunai, QRIS statis (stiker), EDC manual maupun EDC tersambung kabel, dan transfer**. Variabel di bawah hanya untuk **QRIS dinamis yang otomatis lunas**. Langkah lengkapnya ada di [Panduan pembayaran](./PANDUAN-PEMBAYARAN.md).
@@ -67,6 +73,19 @@ Tanpa variabel ini, kasir tetap bisa menerima **tunai, QRIS statis (stiker), EDC
 | `PAYMENT_NOTIFICATION_URL` | `https://<domain-anda>/api/payments/webhook/midtrans`. Boleh dikosongkan bila sudah diatur di dashboard Midtrans (**Payment Notification URL**). Wajib HTTPS. |
 | `QRIS_EXPIRY_MINUTES` | Masa berlaku QR dalam menit. Bawaan `15`. |
 
+### Xendit & DOKU
+`PAYMENT_PROVIDER` juga bisa `xendit` atau `doku`. Variabel dan cara mendapatkannya: [Panduan pembayaran §3c](./PANDUAN-PEMBAYARAN.md).
+
+### Email (SMTP, opsional)
+Mengaktifkan **Lupa password** di halaman masuk. Tanpa ini, password diatur ulang oleh admin atau Owner.
+
+| Variabel | Fungsi |
+|---|---|
+| `SMTP_HOST`, `SMTP_PORT` | Server SMTP. Port 587 (STARTTLS) atau 465 (TLS) |
+| `SMTP_SECURE` | `true` untuk port 465 |
+| `SMTP_USER`, `SMTP_PASSWORD` | Login SMTP. Gmail memakai App Password |
+| `SMTP_FROM` | Alamat pengirim, wajib |
+
 ## 5. Gambar & media: Cloudinary (disarankan di produksi)
 
 Bila ketiga variabel pertama kosong, gambar produk disimpan di database. Itu cukup untuk mencoba atau toko kecil. Langkah lengkapnya ada di [Panduan Cloudinary](./PANDUAN-CLOUDINARY.md).
@@ -76,7 +95,7 @@ Bila ketiga variabel pertama kosong, gambar produk disimpan di database. Itu cuk
 | `CLOUDINARY_CLOUD_NAME` | Cloud name dari Dashboard Cloudinary. |
 | `CLOUDINARY_API_KEY` | Settings › API Keys › API Key (angka). |
 | `CLOUDINARY_API_SECRET` | Settings › API Keys › API Secret. |
-| `CLOUDINARY_FOLDER` | Folder di Media Library. Bawaan `konten-pos`. |
+| `CLOUDINARY_FOLDER` | Folder di Media Library. Bawaan `pos-lifistudio`. |
 
 ## 6. Marketplace (opsional)
 
@@ -127,7 +146,7 @@ BOARDUI_TELEMETRY_DISABLED=1
 
 ```env
 NODE_ENV=production
-DATABASE_URL=postgres://user:password@host:5432/konten?sslmode=require
+DATABASE_URL=postgres://user:password@host:5432/pos?sslmode=require
 BETTER_AUTH_SECRET=kunci-acak-berbeda-dari-development
 BETTER_AUTH_URL=https://pos.toko-anda.com
 PAYMENT_PROVIDER=midtrans

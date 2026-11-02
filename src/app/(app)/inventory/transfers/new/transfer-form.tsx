@@ -61,10 +61,12 @@ export function TransferForm() {
     }
   }
 
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
   const save = useMutation({
     mutationFn: async (send: boolean) => {
       const { data } = await api<{ data: { id: string; number: string } }>("/stock-transfers", {
         method: "POST",
+        headers: { "idempotency-key": idempotencyKey },
         body: { fromBranchId: fromId, toBranchId: toId, note: note.trim() || null, items: lines.map((l) => ({ variantId: l.id, qty: l.qty })) },
       });
       if (send) await api(`/stock-transfers/${data.id}/send`, { method: "POST", body: {} });

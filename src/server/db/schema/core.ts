@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   index,
+  integer,
   jsonb,
   pgEnum,
   pgTable,
@@ -144,6 +145,24 @@ export const auditLogs = pgTable(
     index("audit_logs_entity_idx").on(t.entity, t.entityId),
     index("audit_logs_actor_idx").on(t.actorId),
   ],
+);
+
+/**
+ * Kunci idempotensi untuk aksi tulis yang tidak punya kunci alami (order, penyesuaian stok, transfer, retur, produk).
+ * `response_status` null = permintaan pertama masih berjalan.
+ */
+export const idempotencyKeys = pgTable(
+  "idempotency_keys",
+  {
+    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    route: text("route").notNull(),
+    requestHash: text("request_hash").notNull(),
+    responseStatus: integer("response_status"),
+    responseBody: jsonb("response_body"),
+    createdAt: timestamps.createdAt,
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.key] }), index("idempotency_keys_created_idx").on(t.createdAt)],
 );
 
 /** Pengaturan tingkat toko (berlaku semua cabang), satu baris per kunci. Nilai divalidasi Zod di service. */

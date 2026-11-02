@@ -1,6 +1,6 @@
 # Panduan Printer Struk
 
-Konten POS bisa mencetak struk ke **hampir semua printer struk** — thermal USB, Bluetooth, serial/COM, printer LAN/Wi-Fi, sampai printer kantor biasa — atau menyimpannya sebagai **PDF**. Struk juga bisa **tercetak otomatis** begitu transaksi lunas.
+POS by lifistudio bisa mencetak struk ke **hampir semua printer struk** — thermal USB, Bluetooth, serial/COM, printer LAN/Wi-Fi, sampai printer kantor biasa — atau menyimpannya sebagai **PDF**. Struk juga bisa **tercetak otomatis** begitu transaksi lunas.
 
 > Pengaturan printer disimpan **per perangkat** (di browser komputer/tablet kasir itu), bukan per akun. Tiap mesin kasir bisa memakai printer berbeda. Bila browser dibersihkan (hapus data situs), atur ulang printernya.
 
@@ -10,7 +10,7 @@ Konten POS bisa mencetak struk ke **hampir semua printer struk** — thermal USB
 
 Printer struk kecil yang banyak dijual di marketplace (58 mm, Bluetooth dan/atau USB, sering disebut *printer thermal mini*, *printer kasir portable*, atau *printer nota*) bisa langsung dipakai. Struknya bisa **otomatis keluar** begitu transaksi lunas. Pilih baris yang sesuai perangkat kasir Anda:
 
-| Perangkat kasir | Sambungan printer | Cara cetak di Konten POS | Otomatis tanpa dialog? |
+| Perangkat kasir | Sambungan printer | Cara cetak di POS by lifistudio | Otomatis tanpa dialog? |
 |---|---|---|---|
 | **HP/tablet Android** (Chrome) | Bluetooth **BLE** (di deskripsi produk: *BLE*, *Bluetooth 4.0*, atau *dual mode*) | **Bluetooth** | Ya |
 | **HP/tablet Android** (Chrome) | Kabel USB (pakai OTG) | **USB langsung** | Ya |
@@ -34,7 +34,7 @@ Printer struk kecil yang banyak dijual di marketplace (58 mm, Bluetooth dan/atau
 ### 1b. Printer Bluetooth di HP Android (cara tercepat)
 
 1. Nyalakan **Bluetooth** dan **Lokasi** di HP. Tidak perlu memasangkan (pair) printer di pengaturan Android.
-2. Buka Konten POS di **Chrome**, lalu **Kasir › Perangkat › Printer struk › Bluetooth › Hubungkan printer**.
+2. Buka POS by lifistudio di **Chrome**, lalu **Kasir › Perangkat › Printer struk › Bluetooth › Hubungkan printer**.
 3. Pilih nama printer (contoh: *MPT-II*, *RPP02N*, *PT-210*, *BlueTooth Printer*) lalu **Sambungkan**.
 4. Nyalakan **Cetak otomatis setelah bayar**, lalu **Cetak tes**.
 
@@ -46,12 +46,12 @@ Printer struk kecil yang banyak dijual di marketplace (58 mm, Bluetooth dan/atau
 
 1. Pasangkan (pair) printer di **Pengaturan Android › Bluetooth**.
 2. Pasang aplikasi **layanan cetak** (*print service*) dari pembuat printer, atau aplikasi layanan cetak ESC/POS yang tepercaya dari Play Store, lalu aktifkan di **Pengaturan › Pencetakan**.
-3. Di Konten POS pilih **Printer terpasang di perangkat**. Saat mencetak, pilih printer tersebut di dialog Android. Android mengingat pilihan terakhir.
+3. Di POS by lifistudio pilih **Printer terpasang di perangkat**. Saat mencetak, pilih printer tersebut di dialog Android. Android mengingat pilihan terakhir.
 
 ### 1d. Printer Bluetooth di laptop Windows
 
 1. Pasangkan printer di **Pengaturan Windows › Bluetooth & perangkat › Tambah perangkat** (PIN biasanya `0000` atau `1234`).
-2. Di Konten POS pilih **Serial / COM › Hubungkan printer**, lalu pilih port Bluetooth printer (contoh: *Standard Serial over Bluetooth link (COM5)*).
+2. Di POS by lifistudio pilih **Serial / COM › Hubungkan printer**, lalu pilih port Bluetooth printer (contoh: *Standard Serial over Bluetooth link (COM5)*).
 3. Kecepatan (baud rate) biarkan **9600**. Bila hasil cetak berupa huruf acak, coba **115200**.
 4. Nyalakan **Cetak otomatis setelah bayar**, lalu **Cetak tes**.
 
@@ -60,7 +60,7 @@ Printer struk kecil yang banyak dijual di marketplace (58 mm, Bluetooth dan/atau
 Windows biasanya memasang driver printer sendiri, jadi cara termudah:
 1. Pasang driver dari pembuat printer (biasanya ada di CD atau situs penjual) sampai printer muncul di **Pengaturan › Printer & pemindai**. Atur ukuran kertas **58 mm** di properti printer.
 2. Jadikan printer struk sebagai **printer default**.
-3. Di Konten POS pilih **Printer terpasang di perangkat**, nyalakan **Cetak otomatis setelah bayar**, lalu **Cetak tes**. Di dialog cetak, pilih printer struk, margin **tidak ada**, dan matikan **header & footer**.
+3. Di POS by lifistudio pilih **Printer terpasang di perangkat**, nyalakan **Cetak otomatis setelah bayar**, lalu **Cetak tes**. Di dialog cetak, pilih printer struk, margin **tidak ada**, dan matikan **header & footer**.
 4. Agar tanpa dialog sama sekali, buka kasir lewat shortcut Chrome **mode kiosk** (bagian 5).
 
 ---
@@ -97,7 +97,7 @@ Pilih sesuai gulungan kertas. Bila teks terpotong atau terlalu sempit, ubah leba
 
 1. Pasang printer di sistem operasi seperti biasa (driver dari pabrik, atau **Tambah printer** di Windows/macOS).
 2. Pastikan ukuran kertas di driver sesuai, misalnya **58 mm × Receipt** atau **80 mm × 3276 mm**.
-3. Di Konten POS pilih **Printer terpasang di perangkat**, lalu **Cetak tes**. Pada dialog cetak, pilih printer struk, set **margin: tidak ada**, dan **matikan header & footer**. Chrome mengingat pilihan ini.
+3. Di POS by lifistudio pilih **Printer terpasang di perangkat**, lalu **Cetak tes**. Pada dialog cetak, pilih printer struk, set **margin: tidak ada**, dan **matikan header & footer**. Chrome mengingat pilihan ini.
 
 Printer **LAN/Wi-Fi** juga lewat cara ini: tambahkan printer jaringan di sistem operasi (berdasarkan IP printer), lalu cetak dari dialog.
 

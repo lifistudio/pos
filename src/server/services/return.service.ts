@@ -11,6 +11,7 @@ import { writeAudit } from "./audit.service";
 import { authorizeOrApprove } from "./approval.service";
 import { applyStockChanges } from "./inventory.service";
 import { nextDocNumber } from "./numbering";
+import { lockOpenShift } from "./sale.service";
 import { getStorePolicy } from "./settings.service";
 
 type PaymentMethod = (typeof saleReturns.$inferInsert)["refundMethod"];
@@ -68,6 +69,7 @@ export async function createReturn(actor: Actor, saleId: string, input: CreateRe
   if (input.refundMethod === "CASH" && !shift) throw conflict("NO_OPEN_SHIFT", "Refund tunai butuh shift kasir yang terbuka di cabang ini.");
 
   const returnId = await db.transaction(async (tx) => {
+    if (input.refundMethod === "CASH" && shift && !(await lockOpenShift(tx, shift.id))) throw conflict("NO_OPEN_SHIFT", "Shift baru saja ditutup. Buka shift lagi untuk refund tunai.");
     // Kunci struk: dua retur bersamaan atas struk yang sama diproses berurutan.
     await tx.execute(sql`select 1 from sales where id = ${saleId} for update`);
     const approver = await authorizeOrApprove(tx, actor, "pos:refund", sale.branchId, input.approvalId, `sale:${saleId}`);

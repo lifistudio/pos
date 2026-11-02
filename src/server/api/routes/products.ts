@@ -12,6 +12,7 @@ import { findCodeOwner } from "@/server/services/product-codes";
 import { getProductThumbnail, removeProductThumbnail, setProductThumbnail, THUMBNAIL_MAX_BYTES } from "@/server/services/product-image.service";
 import { can } from "@/server/rbac/access";
 import { ApiError, forbidden } from "../errors";
+import { idempotent } from "../idempotency";
 import { requirePermission } from "../middleware";
 import { pageMeta, pageQuery } from "../pagination";
 import { createRouter } from "../router";
@@ -199,7 +200,7 @@ export const productRoutes = createRouter()
       summary: "Tambah produk beserta variasi, varian, dan stok awal",
       description:
         "SKU dan barcode (EAN-13 in-store) dibuat otomatis bila kosong. Produk tanpa variasi dikirim dengan `options: []` dan tepat 1 varian.",
-      middleware: [requirePermission("product:create")] as const,
+      middleware: [requirePermission("product:create"), idempotent] as const,
       request: { body: body(productCreateInput) },
       responses: { 201: json(dataOf(productDetail), "Produk dibuat"), ...errorResponses },
     }),

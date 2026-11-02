@@ -28,6 +28,7 @@ import {
   signState,
   verifyState,
   type AdapterContext,
+  type Credentials,
   type MarketplaceAdapter,
   type MpOrder,
 } from "@/server/marketplace/types";
@@ -41,6 +42,9 @@ import { advanceOrderTx, cancelOrderTx, confirmOrderPayment } from "./online-ord
 type Connection = typeof marketplaceConnections.$inferSelect;
 type SyncKind = (typeof marketplaceSyncLogs.$inferInsert)["kind"];
 type Issue = { ref: string; message: string };
+
+/** Token diperbarui 5 menit sebelum kedaluwarsa. */
+const TOKEN_REFRESH_MARGIN_MS = 5 * 60_000;
 
 /** Kolom aman untuk client (tanpa kredensial). */
 const publicColumns = {
@@ -146,9 +150,11 @@ export async function completeOAuth(actor: Actor, provider: string, params: URLS
     })
     .onConflictDoUpdate({
       target: [marketplaceConnections.provider, marketplaceConnections.externalShopId],
-      set: { credentialsEnc: encryptCredentials(credentials), tokenExpiresAt: new Date(credentials.expiresAt), status: "ACTIVE", lastError: null, name: shopName, updatedAt: new Date() },
+      // Hubungkan ulang: cabang yang dipilih admin berlaku, dan angka stok dihitung ulang dari cabang itu.
+      set: { credentialsEnc: encryptCredentials(credentials), tokenExpiresAt: new Date(credentials.expiresAt), status: "ACTIVE", lastError: null, name: shopName, branchId: state.branchId, updatedAt: new Date() },
     })
     .returning({ id: marketplaceConnections.id });
+  await db.update(marketplaceListings).set({ lastPushedQty: null }).where(eq(marketplaceListings.connectionId, conn.id));
   await writeAudit(actor, { action: "connect", entity: "marketplace", entityId: conn.id, after: { provider, shopId } });
   await syncListings(conn.id).catch(() => null);
   return conn.id;
@@ -180,16 +186,23 @@ export async function disconnect(actor: Actor, id: string) {
 async function context(conn: Connection, adapter: MarketplaceAdapter): Promise<AdapterContext> {
   if (!adapter.oauth) return { shopId: conn.externalShopId, credentials: null };
   if (!conn.credentialsEnc) throw new MarketplaceError("Toko belum terhubung. Hubungkan ulang.", "AUTH");
-  let credentials = decryptCredentials(conn.credentialsEnc);
-  // Perbarui token 5 menit sebelum kedaluwarsa.
-  if (new Date(credentials.expiresAt).getTime() - Date.now() < 5 * 60_000 && adapter.refresh) {
-    credentials = await adapter.refresh({ shopId: conn.externalShopId, credentials });
-    await db
+  const expiring = (c: Credentials) => new Date(c.expiresAt).getTime() - Date.now() < TOKEN_REFRESH_MARGIN_MS;
+  const credentials = decryptCredentials(conn.credentialsEnc);
+  if (!expiring(credentials) || !adapter.refresh) return { shopId: conn.externalShopId, credentials };
+  // Refresh token sekali pakai: baris dikunci agar webhook & cron yang bersamaan tidak membakar token yang sama,
+  // lalu dibaca ulang karena proses lain mungkin baru saja memperbaruinya.
+  return db.transaction(async (tx) => {
+    const [locked] = await tx.select({ enc: marketplaceConnections.credentialsEnc }).from(marketplaceConnections).where(eq(marketplaceConnections.id, conn.id)).for("update");
+    if (!locked?.enc) throw new MarketplaceError("Toko belum terhubung. Hubungkan ulang.", "AUTH");
+    const current = decryptCredentials(locked.enc);
+    if (!expiring(current)) return { shopId: conn.externalShopId, credentials: current };
+    const fresh = await adapter.refresh!({ shopId: conn.externalShopId, credentials: current });
+    await tx
       .update(marketplaceConnections)
-      .set({ credentialsEnc: encryptCredentials(credentials), tokenExpiresAt: new Date(credentials.expiresAt), updatedAt: new Date() })
+      .set({ credentialsEnc: encryptCredentials(fresh), tokenExpiresAt: new Date(fresh.expiresAt), updatedAt: new Date() })
       .where(eq(marketplaceConnections.id, conn.id));
-  }
-  return { shopId: conn.externalShopId, credentials };
+    return { shopId: conn.externalShopId, credentials: fresh };
+  });
 }
 
 async function loadConnection(id: string) {
@@ -302,26 +315,41 @@ export async function mapListing(actor: Actor, listingId: string, variantId: str
 
 // ── Push stok ───────────────────────────────────────────────────────────
 
+const pushQueue = new Map<string, Promise<unknown>>();
+
 /**
  * Kirim stok tersedia (on_hand − reserved − buffer, min 0) cabang sumber untuk listing yang terpetakan.
  * Hanya baris yang angkanya berubah sejak push terakhir yang dikirim (`force` = kirim semua).
  */
 export async function pushStock(connId: string, opts: { force?: boolean } = {}) {
+  // Berurutan per toko: dua push bersamaan bisa tiba terbalik sehingga angka lama menimpa angka baru.
+  const previous = pushQueue.get(connId) ?? Promise.resolve();
+  const run = previous.catch(() => null).then(() => pushStockNow(connId, opts));
+  pushQueue.set(connId, run);
+  try {
+    return await run;
+  } finally {
+    if (pushQueue.get(connId) === run) pushQueue.delete(connId);
+  }
+}
+
+async function pushStockNow(connId: string, opts: { force?: boolean }) {
   const { conn, adapter } = await loadConnection(connId);
+  const rows = await db
+    .select({
+      id: marketplaceListings.id,
+      externalItemId: marketplaceListings.externalItemId,
+      externalModelId: marketplaceListings.externalModelId,
+      lastPushedQty: marketplaceListings.lastPushedQty,
+      qty: sql<number>`greatest(coalesce(${inventoryLevels.onHand} - ${inventoryLevels.reserved}, 0) - ${conn.stockBuffer}, 0)::int`,
+    })
+    .from(marketplaceListings)
+    .leftJoin(inventoryLevels, and(eq(inventoryLevels.variantId, marketplaceListings.variantId), eq(inventoryLevels.branchId, conn.branchId)))
+    .where(and(eq(marketplaceListings.connectionId, connId), isNotNull(marketplaceListings.variantId)));
+  const changed = rows.filter((r) => opts.force || r.lastPushedQty !== r.qty);
+  // Tanpa perubahan tidak perlu baris log: push terjadi setiap ada penjualan.
+  if (!changed.length) return { stats: { mapped: rows.length, pushed: 0, unchanged: rows.length, failed: 0 }, issues: [] as Issue[] };
   return withLog(connId, "STOCK", async () => {
-    const rows = await db
-      .select({
-        id: marketplaceListings.id,
-        externalItemId: marketplaceListings.externalItemId,
-        externalModelId: marketplaceListings.externalModelId,
-        lastPushedQty: marketplaceListings.lastPushedQty,
-        qty: sql<number>`greatest(coalesce(${inventoryLevels.onHand} - ${inventoryLevels.reserved}, 0) - ${conn.stockBuffer}, 0)::int`,
-      })
-      .from(marketplaceListings)
-      .leftJoin(inventoryLevels, and(eq(inventoryLevels.variantId, marketplaceListings.variantId), eq(inventoryLevels.branchId, conn.branchId)))
-      .where(and(eq(marketplaceListings.connectionId, connId), isNotNull(marketplaceListings.variantId)));
-    const changed = rows.filter((r) => opts.force || r.lastPushedQty !== r.qty);
-    if (!changed.length) return { stats: { mapped: rows.length, pushed: 0, unchanged: rows.length, failed: 0 }, issues: [] as Issue[] };
     const { failed } = await adapter.updateStock(await context(conn, adapter), changed);
     const failedRefs = new Set(failed.map((f) => f.ref));
     const ok = changed.filter((r) => !failedRefs.has(`${r.externalItemId}/${r.externalModelId}`));
@@ -334,6 +362,15 @@ export async function pushStock(connId: string, opts: { force?: boolean } = {}) 
     }
     return { stats: { mapped: rows.length, pushed: ok.length, unchanged: rows.length - changed.length, failed: failed.length }, issues: failed };
   });
+}
+
+/** Stok satu cabang berubah: perbarui semua toko aktif yang bersumber dari cabang itu. Error satu toko tidak menghentikan toko lain. */
+export async function pushBranchStock(branchId: string) {
+  const conns = await db
+    .select({ id: marketplaceConnections.id })
+    .from(marketplaceConnections)
+    .where(and(eq(marketplaceConnections.branchId, branchId), eq(marketplaceConnections.status, "ACTIVE"), eq(marketplaceConnections.pushStock, true)));
+  for (const c of conns) await pushStock(c.id).catch(() => null);
 }
 
 // ── Tarik order ─────────────────────────────────────────────────────────
@@ -356,6 +393,10 @@ async function upsertOrder(conn: Connection, mp: MpOrder): Promise<{ result: "cr
     let created = false;
     if (!existing) {
       if (mp.status === "CANCELLED") return { result: "unchanged" as const };
+      // Barangnya sudah keluar sebelum toko dihubungkan: stok saat itu sudah mencerminkannya, jangan dipotong lagi.
+      if ((mp.status === "SHIPPED" || mp.status === "COMPLETED") && mp.updatedAt < conn.createdAt) return { result: "unchanged" as const };
+      mp = { ...mp, items: mp.items.filter((i) => i.qty > 0) };
+      if (!mp.items.length) return { result: "unchanged" as const, issue: { ref: mp.externalOrderNo, message: "Order tidak berisi barang yang bisa diproses." } };
       const listings = await tx
         .select({ itemId: marketplaceListings.externalItemId, modelId: marketplaceListings.externalModelId, variantId: marketplaceListings.variantId })
         .from(marketplaceListings)
@@ -383,7 +424,8 @@ async function upsertOrder(conn: Connection, mp: MpOrder): Promise<{ result: "cr
       const s = branch.settings ?? {};
       const tax: TaxSnapshot = { enabled: !!s.taxEnabled, rateBps: s.taxRateBps ?? 0, inclusive: true }; // harga marketplace sudah termasuk pajak
       const priced = [...lines.values()].map((l) => ({ ...l, unitPrice: Math.round(l.amount / l.qty) }));
-      const totals = computeTotals(priced.map((l) => ({ unitPrice: l.unitPrice, qty: l.qty })), tax);
+      // Dasar total = nilai baris apa adanya, agar pembulatan harga rata-rata tidak menggeser total dari marketplace.
+      const totals = computeTotals(priced.map((l) => ({ unitPrice: l.amount, qty: 1 })), tax);
       try {
         await reserveStock(tx, priced.map((l) => ({ branchId: conn.branchId, variantId: l.variantId, qty: l.qty })));
       } catch (error) {
@@ -492,7 +534,16 @@ export async function pullOrders(connId: string) {
     const changed = await adapter.listUpdatedOrders(ctx, from, to);
     const orderNos = [...new Set([...changed, ...conn.retryOrderNos])];
     const { stats, issues, retry } = await importOrders(conn, adapter, ctx, orderNos);
-    await db.update(marketplaceConnections).set({ ordersSyncedUntil: to, retryOrderNos: retry, updatedAt: new Date() }).where(eq(marketplaceConnections.id, connId));
+    // Hapus hanya yang selesai diproses di sini: webhook bersamaan mungkin baru saja menambahkan order lain.
+    const done = orderNos.filter((no) => !retry.includes(no));
+    await db
+      .update(marketplaceConnections)
+      .set({
+        ordersSyncedUntil: to,
+        retryOrderNos: sql`(select coalesce(jsonb_agg(distinct x), '[]'::jsonb) from jsonb_array_elements_text(${marketplaceConnections.retryOrderNos} || ${JSON.stringify(retry)}::jsonb) x where not (x = any(${sql.param(done)}::text[])))`,
+        updatedAt: new Date(),
+      })
+      .where(eq(marketplaceConnections.id, connId));
     return { stats: { ...stats, retrying: retry.length }, issues };
   });
 }

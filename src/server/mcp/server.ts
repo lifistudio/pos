@@ -19,7 +19,7 @@ const fail = (message: string) => ({ isError: true, content: [{ type: "text" as 
  */
 export function createMcpServer(actor: Actor, callApi: CallApi) {
   const server = new McpServer(
-    { name: "konten-pos", version: "1.0.0" },
+    { name: "pos-lifistudio", version: "1.0.0" },
     {
       instructions:
         "Data POS multi-cabang (produk, varian, stok per cabang, kartu stok). Semua uang dalam Rupiah (integer). " +

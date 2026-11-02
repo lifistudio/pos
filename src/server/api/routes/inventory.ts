@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { adjustStock, listInventory, listStockMovements, setReorderPoint } from "@/server/services/inventory.service";
+import { idempotent } from "../idempotency";
 import { requirePermission } from "../middleware";
 import { cursorQuery, pageMeta, pageQuery } from "../pagination";
 import { createRouter } from "../router";
@@ -66,7 +67,7 @@ export const inventoryRoutes = createRouter()
       path: "/inventory/adjustments",
       tags: ["Stok"],
       summary: "Penerimaan barang atau penyesuaian stok (tercatat di ledger)",
-      middleware: [requirePermission("inventory:adjust")] as const,
+      middleware: [requirePermission("inventory:adjust"), idempotent] as const,
       request: {
         body: body(
           z

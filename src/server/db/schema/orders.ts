@@ -116,6 +116,8 @@ export const paymentIntents = pgTable(
   },
   (t) => [
     uniqueIndex("payment_intents_gateway_order_uq").on(t.provider, t.gatewayOrderId),
+    // Satu dokumen hanya boleh punya satu QR aktif: dua QR aktif berarti pelanggan bisa membayar dua kali.
+    uniqueIndex("payment_intents_one_pending_uq").on(t.referenceType, t.referenceId).where(sql`${t.status} = 'PENDING'`),
     index("payment_intents_reference_idx").on(t.referenceType, t.referenceId, t.createdAt.desc()),
     check("payment_intents_amount_pos", sql`${t.amount} > 0`),
   ],

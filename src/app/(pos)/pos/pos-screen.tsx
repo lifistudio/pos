@@ -442,7 +442,7 @@ export function PosScreen() {
           <ReturnSheet isOpen={returning} onClose={() => setReturning(false)} branchId={session.data.branch.id} shiftId={shift.id} />
         </>
       )}
-      <PrinterSheet isOpen={printerOpen} onClose={() => setPrinterOpen(false)} storeName={session.data?.branch.name ?? "Konten POS"} />
+      <PrinterSheet isOpen={printerOpen} onClose={() => setPrinterOpen(false)} storeName={session.data?.branch.name ?? "POS by lifistudio"} />
       <TerminalSheet isOpen={terminalOpen} onClose={() => setTerminalOpen(false)} allowSimulator={!!session.data?.qris.simulator} />
       <SyncSheet isOpen={syncOpen} onClose={() => setSyncOpen(false)} online={online} />
     </div>

@@ -2,6 +2,63 @@
 
 Entri terbaru di atas. Format: tanggal — ringkasan — file — belum selesai.
 
+## 2026-11-02 — Sesi 23: Xendit & DOKU, idempotensi menyeluruh, SMTP, installer, dependensi terbaru
+**Keamanan dependensi.** Semua package ke versi terbaru: React 19.3.1 (advisory kritis 14 Oktober yang tidak dilaporkan `pnpm audit`), Next 16.4.4, better-auth, hono, postgres 4, motion 14, ESLint 10, embedded-postgres, pnpm 12. Pengecualian: TypeScript 6.0.3, bukan 7, karena typescript-eslint belum mendukung TS 7. `@tanstack/react-table` dihapus (tidak dipakai). `pnpm audit`: 0 kerentanan, prod maupun dev.
+
+**Payment gateway** (ADR-036): Xendit (Payments API v3) dan DOKU (SNAP QRIS), dipilih lewat `PAYMENT_PROVIDER`. `src/server/payments/{types,xendit,doku}.ts`. Notifikasi DOKU hanya pemicu: status selalu ditanyakan ke DOKU. `providerByName` tidak terbatas pada gateway aktif, jadi QR lama tetap diproses setelah pindah gateway. `pnpm check:payments`.
+
+**Idempotensi & balapan** (ADR-037), semua teruji di `check:flows` (47 skenario):
+- Middleware `idempotent` + tabel `idempotency_keys` (migrasi 0020) untuk order online, penyesuaian stok, transfer, retur, produk. Sebelumnya klik ganda bisa menggandakan order, stok, atau refund.
+- Satu QR aktif per dokumen (indeks unik parsial + advisory lock). Klik ganda QRIS tidak lagi menagih dua kali.
+- Pembayaran ganda ditandai `DUPLICATE_PAYMENT`, sebelumnya tidak tercatat.
+- Membatalkan QR mengecek dulu ke gateway apakah sudah dibayar.
+- Kunci sama untuk keranjang berbeda ditolak, bukan mengembalikan transaksi lama. Bayar tunai dengan kunci QRIS yang belum lunas tidak lagi dianggap lunas.
+- Shift: transaksi memegang kunci bersama, tutup shift memegang kunci eksklusif, jadi angka kas tidak bisa bergeser. Berlaku untuk checkout, void, retur tunai, dan sinkron offline.
+- Opname mengunci stok sebelum menghitung selisih. Push stok marketplace berurutan per toko.
+
+**Akun**: lupa password lewat SMTP opsional (`nodemailer`, halaman `/forgot-password`, `/reset-password`, tautan 1 jam sekali pakai, sesi diputus). Owner kedua lewat `SEED_OWNER2_*`.
+
+**Pemasangan** (diuji dari nol di Windows tanpa Docker: pasang, jalankan, login berhasil): `install.sh`, `install.ps1`, `scripts/setup.mjs`, `scripts/start-local.mjs` (`pnpm local`), `docker-compose.prod.yml` dengan migrasi otomatis, `docs/INSTALL.md`, README baru.
+
+**Docker**: `.env` tidak lagi masuk image. `next build` memakai nilai sementara, env sungguhan diberikan saat container berjalan (ADR-038).
+
+**Merek**: `TRADEMARK.md`. Tidak ada pengaturan untuk mengganti logo.
+
+**Belum**: uji Xendit/DOKU/Shopee/TikTok dengan akun sungguhan; uji jalur Docker (Docker tidak berjalan di mesin pengembang); format tanda tangan DOKU perlu dikonfirmasi di sandbox; pendaftaran service worker gagal di browser pane aplikasi (server menjawab benar), perlu dipastikan di Chrome biasa bahwa mode offline tetap aktif pada build produksi.
+
+## 2026-11-02 — Sesi 22: audit menyeluruh, rebrand POS by lifistudio, siap open source
+**Uji alur baru** `pnpm check:flows` (`scripts/checks/flows.check.mts`): 35 skenario terhadap PostgreSQL sungguhan (kasir, retur, voucher, QRIS, offline, transfer, opname, order online, marketplace, RBAC). Hanya mau berjalan di database lokal bernama `*check*`. Sebelum perbaikan 23 lulus, 8 gagal; sesudahnya 35 lulus. CI menjalankannya dengan service Postgres. `pnpm check:marketplace` kini juga menguji adapter Shopee (`shopee.check.mts`), yang sebelumnya tanpa uji.
+
+**Marketplace, bug diperbaiki:**
+- Shopee: respons 5xx/non-JSON terbaca "tidak ada order" sehingga jendela sinkron maju dan order terlewat selamanya. Sekarang gagal dan diulang.
+- Webhook Shopee: tanda tangan dihitung dari URL internal di balik reverse proxy, jadi semua push akan ditolak di produksi. Kini memakai `BETTER_AUTH_URL`.
+- Refresh token dipakai bersamaan oleh webhook & cron membuat koneksi putus (token sekali pakai). Kini baris dikunci.
+- TikTok: gangguan server otorisasi salah dianggap token dicabut.
+- Order yang sudah dikirim sebelum toko dihubungkan memotong stok dua kali. Kini dilewati.
+- Order marketplace bisa dibatalkan/dilunasi lewat API lokal. Kini ditolak selama toko terhubung (`ORDER_FROM_MARKETPLACE`).
+- Hubungkan ulang mengabaikan cabang yang dipilih. Antrean order tertunda bisa tertimpa webhook bersamaan. Total order bisa bergeser karena pembulatan harga rata-rata. Tanda tangan multi-byte membuat error 500.
+- Nomor resi Shopee kini diambil dari `logistics/get_tracking_number`.
+- **Stok dikirim beberapa detik setelah berubah** (`marketplace/stock-sync.ts`, ADR-035), bukan menunggu cron.
+
+**Keamanan** (ADR-034):
+- Admin bisa mereset password Owner lalu mengambil alih akun: akun Owner kini hanya bisa diubah Owner.
+- Penugasan role diperketat: hak pengelolaan (role, user, api_key, setting, branch, marketplace) wajib dimiliki pemberi, cakupan cabang dicek, role sendiri tidak bisa diubah.
+- Reset password memutus sesi aktif.
+- Penguncian akun setelah 5 gagal login dalam 15 menit (PRD §3.1), audit `login`, `login_failed`, `change_password`.
+- IP dari `X-Forwarded-For` kini dihitung dari kanan (`TRUSTED_PROXY_HOPS`): rate limit bisa dilewati dan IP audit bisa dipalsukan sebelumnya. Limit 20/menit per IP untuk login.
+- Percobaan PIN lama saat ganti PIN ikut dihitung penguncian. Header Basic OAuth rusak tidak lagi error 500.
+- Dependensi: `body-parser` (high) dan `fast-uri` diperbaiki lewat override; `pnpm audit --prod` bersih.
+
+**Flow**: pengguna kini bisa **ganti password sendiri** (menu akun, `change-password-sheet.tsx`). Kolom input di Sheet tidak terlihat di mode gelap, diperbaiki lewat token di `app.css`.
+
+**Merek** (ADR-033): nama **POS by lifistudio**, logo baru (gulungan struk membentuk huruf "p") di `public/brand`, `src/lib/brand.ts`, favicon, ikon PWA. Dibuat dari geometri oleh `scripts/brand/build-logo.mjs`. Logo lama (ikon Remix) melanggar Remix Icon License yang melarang ikon sebagai logo.
+
+SVG logo seluruhnya berupa bentuk (tanpa stroke dan font, satu path), jadi aman diperbesar di Figma, Canva, atau percetakan. Tersedia lockup, tanda, dan ikon berkotak dalam versi gelap & terang, plus `social-preview.svg`. `logo-tile.svg` kini dipakai sebagai favicon.
+
+**Open source**: LICENSE MIT atas nama lifistudio, `NOTICE.md` untuk pihak ketiga, salinan lisensi Apache-2.0 Impeccable, metadata `package.json`, logo & badge di README. Riwayat git diperiksa: tidak ada `.env` atau secret.
+
+**Belum**: uji dengan akun Shopee/TikTok sungguhan (langkahnya di PANDUAN-MARKETPLACE §7). Endpoint yang tidak bisa dikonfirmasi ke dokumentasi resmi: `get_tracking_number`, format `ids` TikTok. Teks hak cipta BoardUI untuk NOTICE (Q-37). Lupa password lewat email (Q-12), 2FA.
+
 ## 2026-10-21 — Sesi 21: env lengkap & panduan semua fitur
 - `.env.example` ditulis ulang lengkap per kelompok (wajib, akun Owner, QRIS Midtrans, Cloudinary, marketplace, pengembangan) dengan penjelasan dan sumber nilai; dicatat juga yang **tidak** memakai env (printer, EDC, layar pelanggan, OAuth). `DB_LOG_QUERIES` dan `TEST_KASIR_*` kini terdokumentasi. `.env` lokal ditambah kunci yang belum ada (sebagai komentar; nilai lama tidak diubah; `PAYMENT_PROVIDER=mock` ditulis eksplisit = perilaku sama).
 - Panduan baru `PANDUAN-ENV.md` (juga di menu **Panduan › Pengaturan server**): di mana env diisi (lokal, VPS, hosting), tabel tiap variabel + cara mendapatkannya, contoh dev & produksi, masalah umum.

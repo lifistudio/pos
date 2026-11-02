@@ -1,5 +1,6 @@
 import "server-only";
 import { createMiddleware } from "hono/factory";
+import { env } from "@/server/env";
 import { ApiError } from "./errors";
 import type { AppEnv } from "./context";
 
@@ -26,7 +27,15 @@ function hit(key: string, limit: number, windowMs: number) {
   return { allowed: b.count <= limit, retryAfter: Math.ceil((b.resetAt - now) / 1000), remaining: Math.max(0, limit - b.count) };
 }
 
-export const clientIp = (headers: Headers) => headers.get("x-forwarded-for")?.split(",")[0]?.trim() || headers.get("x-real-ip") || "unknown";
+/**
+ * IP klien. Entri kiri X-Forwarded-For bisa diisi sembarang oleh pengirim (rate limit jadi bisa dilewati), jadi yang
+ * dipakai adalah entri yang ditambahkan proxy tepercaya: dihitung dari kanan sebanyak TRUSTED_PROXY_HOPS.
+ */
+export function clientIp(headers: Headers) {
+  const chain = headers.get("x-forwarded-for")?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
+  const hops = env.TRUSTED_PROXY_HOPS;
+  return (hops > 0 ? chain[Math.max(0, chain.length - hops)] : undefined) || headers.get("x-real-ip") || "unknown";
+}
 
 /**
  * `by: "actor"` → kunci per pengguna/API key (dipasang setelah autentikasi), `by: "ip"` → endpoint publik.

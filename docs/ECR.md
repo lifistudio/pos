@@ -2,7 +2,7 @@
 
 Dokumen teknis. Panduan pengguna ada di [PANDUAN-PEMBAYARAN.md](./PANDUAN-PEMBAYARAN.md).
 
-**ECR (Electronic Cash Register) integration** = kasir mengirim nominal ke mesin EDC lewat kabel, lalu EDC mengirim balik hasilnya (approved/declined, kode approval, RRN, dll.). Konten POS menjalankannya **di browser** lewat **Web Serial** (Chrome/Edge desktop): EDC dengan kabel USB-serial / RS-232, atau USB yang tampil sebagai port COM.
+**ECR (Electronic Cash Register) integration** = kasir mengirim nominal ke mesin EDC lewat kabel, lalu EDC mengirim balik hasilnya (approved/declined, kode approval, RRN, dll.). POS by lifistudio menjalankannya **di browser** lewat **Web Serial** (Chrome/Edge desktop): EDC dengan kabel USB-serial / RS-232, atau USB yang tampil sebagai port COM.
 
 ## Arsitektur
 
@@ -29,11 +29,11 @@ Spesifikasi ECR tiap bank (BCA, Mandiri, BRI, BNI, CIMB, dll.) **tidak publik**.
 3. Tambahkan contoh paket asli dari dokumen bank ke `scripts/checks/ecr.check.ts` (permintaan yang dihasilkan harus sama byte-per-byte, jawaban contoh harus terurai benar).
 4. Uji dengan EDC uji bank sebelum dipakai di toko. Jangan menebak format dari sumber tidak resmi.
 
-Bila protokol bank tidak memakai framing STX/ETX/LRC (mis. TCP/IP di LAN atau JSON di EDC Android), pakai **jembatan** yang menerjemahkan ke Konten ECR v1 di bawah. Browser tidak bisa membuka koneksi TCP mentah.
+Bila protokol bank tidak memakai framing STX/ETX/LRC (mis. TCP/IP di LAN atau JSON di EDC Android), pakai **jembatan** yang menerjemahkan ke POS ECR v1 di bawah. Browser tidak bisa membuka koneksi TCP mentah.
 
-## Protokol terbuka: Konten ECR v1
+## Protokol terbuka: POS ECR v1
 
-Untuk vendor EDC, aplikasi di EDC Android, atau jembatan (mis. aplikasi kecil yang meneruskan ke protokol bank). Dipilih di **Pengaturan EDC › Protokol: Konten ECR v1**.
+Untuk vendor EDC, aplikasi di EDC Android, atau jembatan (mis. aplikasi kecil yang meneruskan ke protokol bank). Dipilih di **Pengaturan EDC › Protokol: POS ECR v1**.
 
 **Transport:** serial 8N1, baud sesuai pengaturan (default 9600). **Paket:** `STX(0x02) ‖ JSON UTF-8 ‖ ETX(0x03) ‖ LRC`, LRC = XOR semua byte JSON **dan** ETX, nilai awal `0x00`. Penerima membalas `ACK(0x06)` untuk paket valid dan `NAK(0x15)` untuk LRC salah. Kasir mengirim ulang permintaan maksimal 3× bila tidak ada ACK dalam 3 detik.
 

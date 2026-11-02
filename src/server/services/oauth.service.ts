@@ -65,7 +65,7 @@ export function protectedResourceMetadata() {
     authorization_servers: [issuer()],
     scopes_supported: [OAUTH_SCOPE],
     bearer_methods_supported: ["header"],
-    resource_name: "Konten POS (MCP, hanya-baca)",
+    resource_name: "POS by lifistudio (MCP, hanya-baca)",
     resource_documentation: `${issuer()}/panduan/mcp`,
   };
 }

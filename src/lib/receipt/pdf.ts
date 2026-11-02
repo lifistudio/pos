@@ -36,7 +36,7 @@ export function receiptPdf(lines: ReceiptLine[], opts: { paperMm: 58 | 80; colum
     `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
     "<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>",
     "<< /Type /Font /Subtype /Type1 /BaseFont /Courier-Bold /Encoding /WinAnsiEncoding >>",
-    `<< /Title (${escapePdf(opts.title ?? "Struk")}) /Producer (Konten POS) >>`,
+    `<< /Title (${escapePdf(opts.title ?? "Struk")}) /Producer (POS by lifistudio) >>`,
   ];
   let out = "%PDF-1.4\n";
   const offsets: number[] = [];

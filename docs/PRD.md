@@ -37,7 +37,7 @@ Role bisa dibuat bebas lewat RBAC (lihat §6). Ini role bawaan (seed) yang bisa 
 
 Prioritas: **P0** = wajib MVP, **P1** = rilis kedua, **P2** = nanti.
 
-### 3.1 Autentikasi & Akun — P0 (✅ login/logout, rate limit, sesi 12 jam; ⏳ PIN kasir, 2FA, reset password)
+### 3.1 Autentikasi & Akun — P0 (✅ login/logout, rate limit, sesi 12 jam, kunci akun setelah 5 gagal, ganti password sendiri, reset oleh admin; ⏳ PIN kasir, 2FA, lupa password via email)
 - Login email + password; sesi berbasis cookie httpOnly (detail di ARCHITECTURE.md).
 - **PIN 6 digit kasir** untuk switch user cepat di perangkat POS bersama dan untuk approval supervisor.
 - 2FA (TOTP) opsional, **wajib untuk Owner & Admin**.

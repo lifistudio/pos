@@ -1,14 +1,19 @@
-import { RiStore2Fill } from "@remixicon/react";
+import { BRAND, MARK_PATH, MARK_VIEWBOX } from "@/lib/brand";
 import { cx } from "@/utils/cx";
 
-/** Tanda merek sementara ("Konten") sampai logo resmi tersedia. */
+/** Tanda merek: mengikuti warna teks, jadi otomatis benar di tema terang & gelap. */
 export function BrandMark({ className, showName = true }: { className?: string; showName?: boolean }) {
   return (
-    <span className={cx("flex items-center gap-2", className)}>
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-2lg bg-linear-to-b from-accent-500 to-accent-600 shadow-nav-selected">
-        <RiStore2Fill className="size-[18px] text-white" aria-hidden />
-      </span>
-      {showName && <span className="text-headline-semibold text-text-primary">Konten</span>}
+    <span className={cx("flex items-center gap-1.5", className)}>
+      <svg viewBox={MARK_VIEWBOX} className="size-8 shrink-0 text-text-primary" fill="currentColor" role={showName ? undefined : "img"} aria-hidden={showName || undefined} aria-label={showName ? undefined : BRAND.name}>
+        <path d={MARK_PATH} />
+      </svg>
+      {showName && (
+        <span className="flex flex-col">
+          <span className="text-headline-semibold text-text-primary">{BRAND.short}</span>
+          <span className="text-caption-1-regular text-text-tertiary">{BRAND.by}</span>
+        </span>
+      )}
     </span>
   );
 }
