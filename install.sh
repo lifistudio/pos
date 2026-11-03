@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Pemasang POS by lifistudio untuk Linux & macOS:
-#   curl -fsSL https://raw.githubusercontent.com/NurlChl/pos/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/lifistudio/pos/main/install.sh | bash
 # Pakai Docker bila ada (disarankan untuk server); tanpa Docker memakai Node.js + PostgreSQL bawaan.
 # Opsi lewat env: POS_DIR, POS_URL, POS_OWNER_EMAIL, POS_OWNER_PASSWORD, POS_MODE=docker|local, POS_BRANCH.
 set -euo pipefail
 
-REPO="https://github.com/NurlChl/pos"
+REPO="https://github.com/lifistudio/pos"
 BRANCH="${POS_BRANCH:-main}"
 DIR="${POS_DIR:-$HOME/pos-lifistudio}"
 

@@ -2,6 +2,10 @@
 
 Entri terbaru di atas. Format: tanggal — ringkasan — file — belum selesai.
 
+## 2026-11-03 — Sesi 24: repo pindah ke lifistudio, instalasi Docker
+- Repositori pindah ke `github.com/lifistudio/pos`: URL di `install.sh`, `install.ps1`, README, INSTALL, dan `package.json` diperbarui.
+- README: baris instalasi manual dihapus (panduannya tetap di INSTALL.md), ditambah instalasi lewat Docker.
+
 ## 2026-11-02 — Sesi 23: Xendit & DOKU, idempotensi menyeluruh, SMTP, installer, dependensi terbaru
 **Keamanan dependensi.** Semua package ke versi terbaru: React 19.3.1 (advisory kritis 14 Oktober yang tidak dilaporkan `pnpm audit`), Next 16.4.4, better-auth, hono, postgres 4, motion 14, ESLint 10, embedded-postgres, pnpm 12. Pengecualian: TypeScript 6.0.3, bukan 7, karena typescript-eslint belum mendukung TS 7. `@tanstack/react-table` dihapus (tidak dipakai). `pnpm audit`: 0 kerentanan, prod maupun dev.
 

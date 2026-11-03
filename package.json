@@ -7,11 +7,11 @@
   "author": "lifistudio",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/NurlChl/pos.git"
+    "url": "git+https://github.com/lifistudio/pos.git"
   },
-  "homepage": "https://github.com/NurlChl/pos#readme",
+  "homepage": "https://github.com/lifistudio/pos#readme",
   "bugs": {
-    "url": "https://github.com/NurlChl/pos/issues"
+    "url": "https://github.com/lifistudio/pos/issues"
   },
   "scripts": {
     "dev": "next dev",

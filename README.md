@@ -35,13 +35,13 @@ Cocok untuk toko retail apa pun, dari satu kasir sampai banyak cabang dan gudang
 **Linux & macOS**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/NurlChl/pos/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/lifistudio/pos/main/install.sh | bash
 ```
 
 **Windows** (PowerShell)
 
 ```powershell
-irm https://raw.githubusercontent.com/NurlChl/pos/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/lifistudio/pos/main/install.ps1 | iex
 ```
 
 Installer mengunduh kode, membuat kunci rahasia, menanyakan email & password Owner, lalu menjalankan aplikasi di `http://localhost:3000`. Docker dipakai bila tersedia. Tanpa Docker, installer memakai Node.js dengan PostgreSQL bawaan. Jalankan perintah yang sama lagi untuk memperbarui.
@@ -51,7 +51,7 @@ Installer mengunduh kode, membuat kunci rahasia, menanyakan email & password Own
 | Laptop/PC Windows, macOS, Linux | [Instalasi lokal](docs/INSTALL.md#instalasi-lokal) |
 | VPS dengan domain & HTTPS | [Instalasi VPS](docs/INSTALL.md#instalasi-di-vps) |
 | Dokploy | [Instalasi Dokploy](docs/INSTALL.md#instalasi-di-dokploy) |
-| Pasang manual, langkah demi langkah | [Instalasi manual](docs/INSTALL.md#instalasi-manual) |
+| Docker | [Instalasi Docker](docs/INSTALL.md#instalasi-lewat-docker) |
 
 ## Fitur
 

@@ -4,8 +4,8 @@ Cara tercepat: satu perintah. Installer mengunduh kode, membuat kunci rahasia, m
 
 | Sistem | Perintah |
 |---|---|
-| Linux, macOS | `curl -fsSL https://raw.githubusercontent.com/NurlChl/pos/main/install.sh \| bash` |
-| Windows (PowerShell) | `irm https://raw.githubusercontent.com/NurlChl/pos/main/install.ps1 \| iex` |
+| Linux, macOS | `curl -fsSL https://raw.githubusercontent.com/lifistudio/pos/main/install.sh \| bash` |
+| Windows (PowerShell) | `irm https://raw.githubusercontent.com/lifistudio/pos/main/install.ps1 \| iex` |
 
 Installer memilih cara terbaik sendiri: Docker bila berjalan, selain itu Node.js dengan PostgreSQL bawaan. Mengulang perintah yang sama akan memperbarui aplikasi; `.env` dan data tidak ditimpa.
 
@@ -27,7 +27,7 @@ Opsi lewat variabel, untuk pemasangan tanpa pertanyaan:
 ### Windows
 1. Buka **PowerShell**, jalankan:
    ```powershell
-   irm https://raw.githubusercontent.com/NurlChl/pos/main/install.ps1 | iex
+   irm https://raw.githubusercontent.com/lifistudio/pos/main/install.ps1 | iex
    ```
 2. Node.js dipasang otomatis lewat `winget` bila belum ada. Tutup dan buka lagi PowerShell bila diminta.
 3. Jawab pertanyaan, lalu buka `http://localhost:3000`.
@@ -43,7 +43,7 @@ Docker Desktop opsional. Bila Docker bermasalah di komputer Anda, pasang tanpa D
 1. Pasang [Node.js 22+](https://nodejs.org) atau [Docker Desktop](https://www.docker.com/products/docker-desktop/).
 2. Buka **Terminal**, jalankan:
    ```bash
-   curl -fsSL https://raw.githubusercontent.com/NurlChl/pos/main/install.sh | bash
+   curl -fsSL https://raw.githubusercontent.com/lifistudio/pos/main/install.sh | bash
    ```
 
 ### Linux
@@ -55,13 +55,48 @@ Sama seperti macOS. Bila menjalankan sebagai `root` dan Docker belum ada, instal
 
 ---
 
+## Instalasi lewat Docker
+
+Untuk yang ingin menjalankan sendiri tanpa skrip installer. Butuh Docker dengan Docker Compose. Aplikasi, PostgreSQL, dan migrasi berjalan otomatis di dalam container.
+
+1. Ambil kode:
+   ```bash
+   git clone https://github.com/lifistudio/pos.git && cd pos
+   ```
+2. Buat berkas `.env` berisi:
+   ```env
+   BETTER_AUTH_URL=http://localhost:3000
+   BETTER_AUTH_SECRET=hasil-perintah-acak
+   MARKETPLACE_SECRET=hasil-perintah-acak-lain
+   POSTGRES_PASSWORD=hasil-perintah-acak-lain
+   SEED_OWNER_EMAIL=owner@toko-anda.com
+   SEED_OWNER_PASSWORD=password-minimal-12-karakter
+   PAYMENT_PROVIDER=none
+   ```
+   Buat tiap nilai acak dengan `openssl rand -hex 32`. Semua opsi lain ada di `.env.example`.
+3. Jalankan:
+   ```bash
+   docker compose -f docker-compose.prod.yml up -d --build
+   ```
+4. Buka `http://localhost:3000`, lalu hapus `SEED_OWNER_PASSWORD` dari `.env`.
+
+Perintah berguna:
+
+```bash
+docker compose -f docker-compose.prod.yml logs -f app
+```
+
+Memperbarui: `git pull`, lalu ulangi langkah 3. Data tersimpan di volume `pgdata`. Jangan menjalankan `docker compose down -v`, karena itu menghapus database.
+
+---
+
 ## Instalasi di VPS
 
 Disarankan Ubuntu 24.04 ke atas, RAM minimal 2 GB (build butuh memori), dengan domain yang sudah mengarah ke IP server.
 
 1. Masuk ke server sebagai `root`, lalu jalankan dengan alamat domain Anda:
    ```bash
-   curl -fsSL https://raw.githubusercontent.com/NurlChl/pos/main/install.sh | POS_URL=https://pos.toko-anda.com bash
+   curl -fsSL https://raw.githubusercontent.com/lifistudio/pos/main/install.sh | POS_URL=https://pos.toko-anda.com bash
    ```
 2. Pasang HTTPS. Paling mudah dengan [Caddy](https://caddyserver.com/docs/install), isi `/etc/caddy/Caddyfile`:
    ```
@@ -122,7 +157,7 @@ Ada dua cara. **Cara A disarankan** karena migrasi database berjalan otomatis se
 Butuh Node.js 22+, pnpm (`corepack enable`), dan PostgreSQL 18 (bisa lewat `pnpm db:start`).
 
 ```bash
-git clone https://github.com/NurlChl/pos.git && cd pos
+git clone https://github.com/lifistudio/pos.git && cd pos
 pnpm install
 cp .env.example .env      # isi BETTER_AUTH_SECRET dan SEED_OWNER_PASSWORD
 pnpm db:start             # biarkan berjalan, lalu buka terminal baru
@@ -148,6 +183,7 @@ Produksi tanpa Docker: `pnpm build`, lalu `pnpm start`.
 | Cara pasang | Perintah |
 |---|---|
 | Installer | Jalankan ulang perintah pemasangan |
+| Docker | `git pull`, lalu `docker compose -f docker-compose.prod.yml up -d --build` |
 | Dokploy cara A | Klik **Deploy** |
 | Dokploy cara B | `pnpm db:migrate` ke database produksi, lalu **Deploy** |
 

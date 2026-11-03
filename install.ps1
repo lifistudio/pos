@@ -1,10 +1,10 @@
 # Pemasang POS by lifistudio untuk Windows (PowerShell):
-#   irm https://raw.githubusercontent.com/NurlChl/pos/main/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/lifistudio/pos/main/install.ps1 | iex
 # Pakai Docker Desktop bila berjalan; tanpa itu memakai Node.js + PostgreSQL bawaan.
 # Opsi lewat env: POS_DIR, POS_URL, POS_OWNER_EMAIL, POS_OWNER_PASSWORD, POS_MODE=docker|local, POS_BRANCH.
 $ErrorActionPreference = "Stop"
 
-$Repo = "https://github.com/NurlChl/pos"
+$Repo = "https://github.com/lifistudio/pos"
 $Branch = if ($env:POS_BRANCH) { $env:POS_BRANCH } else { "main" }
 $Dir = if ($env:POS_DIR) { $env:POS_DIR } else { Join-Path $HOME "pos-lifistudio" }
 
