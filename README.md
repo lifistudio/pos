@@ -95,4 +95,4 @@ Kontribusi sangat diterima, baik laporan bug, perbaikan, fitur, maupun dokumenta
 
 ## Lisensi
 
-Kode berlisensi [MIT](LICENSE) © lifistudio: bebas dipakai, diubah, dan dijual, selama pemberitahuan lisensi tetap disertakan. Nama dan logo POS by lifistudio tidak termasuk dalam lisensi kode, lihat [TRADEMARK.md](TRADEMARK.md). Komponen pihak ketiga tercantum di [NOTICE.md](NOTICE.md).
+Kode berlisensi [MIT](LICENSE) © lifistudio: bebas dipakai, diubah, dan dijual, selama pemberitahuan lisensi tetap disertakan. Nama dan logo POS by lifistudio tidak termasuk dalam lisensi kode. Penjual yang memakainya wajib menampilkan logo utuh dan boleh memakai format co-branding **POS by lifistudio x Nama Anda**, lihat [TRADEMARK.md](TRADEMARK.md). Komponen pihak ketiga tercantum di [NOTICE.md](NOTICE.md).

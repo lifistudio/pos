@@ -218,3 +218,5 @@ Tabel `api_keys` (hash SHA-256, prefix, kedaluwarsa, cabut, last-used). Alasan: 
 ## ADR-039 — Logo tidak bisa diganti lewat aplikasi — Diterima — 2026-11-02
 - Permintaan owner: logo tidak bisa diganti saat dipasang. Di bawah MIT, siapa pun boleh mengubah kode, jadi pencegahan teknis mudah dilepas dan tidak dipakai.
 - Yang dilakukan: tidak ada env maupun menu untuk mengganti logo, dan TRADEMARK.md mengecualikan nama & logo dari lisensi kode.
+- Dikonfirmasi owner (2026-11-03): tetap MIT murni seperti 9router dan Hermes. Logo tidak diwajibkan dan penjualan ulang tidak dilarang, karena klausul logo membuat proyek bukan MIT lagi. Identitas dilindungi lewat TRADEMARK.md.
+- Tambahan owner (2026-11-03): penjual yang memakai nama atau logo wajib menampilkan logo utuh dan boleh memakai format `POS by lifistudio x Nama Mereka`. Aturan ini ada di TRADEMARK.md, bukan LICENSE, jadi hanya mengikat yang memakai merek; fork yang memakai nama sendiri tetap bebas sesuai MIT.
