@@ -89,14 +89,27 @@ function readEnv() {
   return out;
 }
 
+let database = null;
+
+// dev-db berhenti rapi saat stdin ditutup. taskkill tidak dipakai: postgres yang dibunuh paksa bisa tertinggal memegang port.
+async function stopDatabase() {
+  if (!database || database.exitCode !== null) return;
+  const exited = new Promise((resolve) => database.once("exit", resolve));
+  database.stdin.end();
+  await Promise.race([exited, new Promise((resolve) => setTimeout(resolve, 20000))]);
+}
+
 async function startDatabase(env) {
   const port = Number(new URL(env.DATABASE_URL).port);
   if (await portOpen(port)) return;
   const log = openSync(path.join(root, ".data-db.log"), "a");
-  // Langsung lewat Node: proses terlepas yang dibungkus shell Windows tidak menjalankan perintahnya.
-  spawn(process.execPath, [path.join(root, "node_modules/tsx/dist/cli.mjs"), "scripts/dev-db.ts"], { cwd: root, detached: true, stdio: ["ignore", log, log], windowsHide: true, env: { ...process.env, ...env, NODE_ENV: "development" } }).unref();
+  // Tidak dilepas (detached): di Windows proses terlepas kadang terhenti oleh 0xC000013A saat initdb.
+  // Database hidup selama penyiapan dan aplikasi, lalu berhenti bersamanya. Lihat ADR-040.
+  database = spawn(process.execPath, [path.join(root, "node_modules/tsx/dist/cli.mjs"), "scripts/dev-db.ts"], { cwd: root, stdio: ["pipe", log, log], windowsHide: true, env: { ...process.env, ...env, NODE_ENV: "development", POS_DB_STOP_ON_STDIN_END: "1" } });
+  closeSync(log);
   for (let i = 0; i < 120; i++) {
     if (await portOpen(port)) return;
+    if (database.exitCode !== null) break;
     await new Promise((r) => setTimeout(r, 1000));
   }
   throw new Error("PostgreSQL tidak menyala. Lihat .data-db.log.");
@@ -137,7 +150,12 @@ function report(a) {
   console.log(`\n  Alamat : ${a.url}\n  Email  : ${a.email}${a.generated ? `\n  Password: ${a.password}\n\n  Simpan password ini sekarang, tidak ditampilkan lagi.` : ""}\n`);
 }
 
-main().catch((error) => {
-  console.error(`\nGagal: ${error.message}`);
-  process.exit(1);
-});
+main()
+  .catch((error) => {
+    console.error(`\nGagal: ${error.message}`);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await stopDatabase();
+    process.exit();
+  });

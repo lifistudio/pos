@@ -220,3 +220,8 @@ Tabel `api_keys` (hash SHA-256, prefix, kedaluwarsa, cabut, last-used). Alasan: 
 - Yang dilakukan: tidak ada env maupun menu untuk mengganti logo, dan TRADEMARK.md mengecualikan nama & logo dari lisensi kode.
 - Dikonfirmasi owner (2026-11-03): tetap MIT murni seperti 9router dan Hermes. Logo tidak diwajibkan dan penjualan ulang tidak dilarang, karena klausul logo membuat proyek bukan MIT lagi. Identitas dilindungi lewat TRADEMARK.md.
 - Tambahan owner (2026-11-03): penjual yang memakai nama atau logo wajib menampilkan logo utuh dan boleh memakai format `POS by lifistudio x Nama Mereka`. Aturan ini ada di TRADEMARK.md, bukan LICENSE, jadi hanya mengikat yang memakai merek; fork yang memakai nama sendiri tetap bebas sesuai MIT.
+
+## ADR-040 — PostgreSQL bawaan tidak dilepas saat penyiapan — Diterima — 2026-11-04
+- Di Windows, PostgreSQL yang dijalankan terlepas dari `setup.mjs` kadang terhenti oleh 0xC000013A saat initdb. Penyebab tepatnya belum diketahui. Dijalankan tidak terlepas, gejala ini tidak muncul dalam semua uji.
+- Konsekuensi: database hidup selama penyiapan dan aplikasi, lalu berhenti bersamanya. Setelah komputer dinyalakan ulang, `corepack pnpm local` menyalakan keduanya seperti sebelumnya.
+- Penghentian memakai `pg_ctl stop` di Windows, bukan `pg.stop()` yang memakai `taskkill /f`.

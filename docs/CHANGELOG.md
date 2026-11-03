@@ -2,6 +2,14 @@
 
 Entri terbaru di atas. Format: tanggal — ringkasan — file — belum selesai.
 
+## 2026-11-04 — Sesi 25: installer Windows tanpa Docker
+- Gejala: `install.ps1` tanpa Docker gagal dengan "PostgreSQL tidak menyala". `.data-db.log` berisi `^C` saat initdb, dan proses keluar dengan 0xC000013A. Menjalankan ulang tetap gagal karena folder database setengah jadi.
+- `scripts/setup.mjs`: PostgreSQL tidak lagi dilepas (detached). Dalam uji di terminal Windows, cara lama gagal 2 dari 4 kali dan cara baru berhasil 2 dari 2. Database berhenti rapi saat penyiapan selesai atau gagal, lewat penutupan stdin (ADR-040).
+- `scripts/dev-db.ts`: di Windows berhenti lewat `pg_ctl stop`, karena `pg.stop()` memakai `taskkill /f` dan proses anak postgres bisa tertinggal memegang port. Folder database yang belum selesai dibuat diulang otomatis. Database aplikasi dibuat bila belum ada, tidak hanya pada pemasangan pertama.
+- `install.ps1`: pesan `EPERM` dari `corepack enable` tanpa hak admin tidak lagi tampil. Pemasangan memang tidak bergantung padanya.
+- Diuji di Windows 11 tanpa Docker: pemasangan penuh dari salinan bersih, pemasangan berulang, pemulihan folder setengah jadi, `corepack pnpm local` setelah berhenti, login Owner, dashboard. Mode Docker, Linux, dan macOS belum diuji ulang.
+- Belum selesai: `next start` memberi peringatan karena `output: standalone`. Aplikasi tetap berjalan.
+
 ## 2026-11-03 — Sesi 24: repo pindah ke lifistudio, instalasi Docker
 - Repositori pindah ke `github.com/lifistudio/pos`: URL di `install.sh`, `install.ps1`, README, INSTALL, dan `package.json` diperbarui.
 - README: baris instalasi manual dihapus (panduannya tetap di INSTALL.md), ditambah instalasi lewat Docker.

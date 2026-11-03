@@ -58,7 +58,7 @@ function Docker-Ready {
 
 Get-Code
 Ensure-Node
-corepack enable 2>$null
+corepack enable *> $null
 $env:COREPACK_ENABLE_DOWNLOAD_PROMPT = "0"
 
 $mode = if ($env:POS_MODE) { $env:POS_MODE } elseif (Docker-Ready) { "docker" } else { "local" }
