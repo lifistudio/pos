@@ -26,6 +26,8 @@ const pg = new EmbeddedPostgres({
   port: Number(url.port),
   persistent: true,
   initdbFlags: ["--encoding=UTF8", "--locale=C"],
+  // Terminal ditutup paksa: tanpa ini postmaster sempat memulai ulang proses anak yang lalu tertinggal memegang port.
+  postgresFlags: ["-c", "restart_after_crash=off"],
 });
 
 // Di Windows pg.stop() mematikan postmaster secara paksa, dan proses anaknya bisa tertinggal memegang port. pg_ctl berhenti rapi.

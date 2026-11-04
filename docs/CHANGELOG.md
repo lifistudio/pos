@@ -8,6 +8,8 @@ Entri terbaru di atas. Format: tanggal — ringkasan — file — belum selesai.
 - `scripts/dev-db.ts`: di Windows berhenti lewat `pg_ctl stop`, karena `pg.stop()` memakai `taskkill /f` dan proses anak postgres bisa tertinggal memegang port. Folder database yang belum selesai dibuat diulang otomatis. Database aplikasi dibuat bila belum ada, tidak hanya pada pemasangan pertama.
 - `install.ps1`: pesan `EPERM` dari `corepack enable` tanpa hak admin tidak lagi tampil. Pemasangan memang tidak bergantung padanya.
 - Diuji di Windows 11 tanpa Docker: pemasangan penuh dari salinan bersih, pemasangan berulang, pemulihan folder setengah jadi, `corepack pnpm local` setelah berhenti, login Owner, dashboard. Mode Docker, Linux, dan macOS belum diuji ulang.
+- `scripts/setup.mjs`: migrasi menunggu tanda siap dari `dev-db`, bukan port terbuka. Setelah terminal ditutup paksa, port sudah terbuka selama pemulihan dan migrasi gagal dengan "not yet accepting connections".
+- `scripts/dev-db.ts`: `restart_after_crash=off`. Saat terminal ditutup paksa, postmaster kadang memulai ulang proses anak yang lalu tertinggal memegang port, dan perintah berikutnya macet. Kini database mati total bila satu prosesnya mati mendadak, dan menyala lagi lewat `corepack pnpm local`.
 - Belum selesai: `next start` memberi peringatan karena `output: standalone`. Aplikasi tetap berjalan.
 
 ## 2026-11-03 — Sesi 24: repo pindah ke lifistudio, instalasi Docker

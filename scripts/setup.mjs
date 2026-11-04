@@ -8,7 +8,7 @@
  */
 import { spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { closeSync, chmodSync, existsSync, openSync, readFileSync, writeFileSync } from "node:fs";
+import { closeSync, chmodSync, existsSync, openSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import net from "node:net";
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
@@ -102,13 +102,16 @@ async function stopDatabase() {
 async function startDatabase(env) {
   const port = Number(new URL(env.DATABASE_URL).port);
   if (await portOpen(port)) return;
-  const log = openSync(path.join(root, ".data-db.log"), "a");
+  const logPath = path.join(root, ".data-db.log");
+  const logStart = existsSync(logPath) ? statSync(logPath).size : 0;
+  const log = openSync(logPath, "a");
   // Tidak dilepas (detached): di Windows proses terlepas kadang terhenti oleh 0xC000013A saat initdb.
   // Database hidup selama penyiapan dan aplikasi, lalu berhenti bersamanya. Lihat ADR-040.
   database = spawn(process.execPath, [path.join(root, "node_modules/tsx/dist/cli.mjs"), "scripts/dev-db.ts"], { cwd: root, stdio: ["pipe", log, log], windowsHide: true, env: { ...process.env, ...env, NODE_ENV: "development", POS_DB_STOP_ON_STDIN_END: "1" } });
   closeSync(log);
   for (let i = 0; i < 120; i++) {
-    if (await portOpen(port)) return;
+    // Port sudah terbuka selama pemulihan setelah terminal ditutup paksa, jadi tunggu tanda siap dari dev-db.
+    if (readFileSync(logPath).subarray(logStart).includes("PostgreSQL siap")) return;
     if (database.exitCode !== null) break;
     await new Promise((r) => setTimeout(r, 1000));
   }
